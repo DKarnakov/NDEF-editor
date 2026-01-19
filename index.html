@@ -37,9 +37,8 @@
         }
         button:hover { background-color: #0056b3; }
     </style>
-
-    <!-- ИЗМЕНЕНИЕ 1: Добавлен атрибут 'defer', чтобы скрипт загружался, но не выполнялся до готовности страницы -->
-    <script src="https://cdn.jsdelivr.net/npm/ndef@1/dist/ndef.js" defer></script>
+    <!-- 1. Библиотека по-прежнему подключается в <head> -->
+    <script src="https://cdn.jsdelivr.net/npm/ndef@1/dist/ndef.js"></script>
 </head>
 <body>
     <div class="container">
@@ -74,63 +73,67 @@
         </form>
     </div>
 
-    <!-- ИЗМЕНЕНИЕ 2: Основной скрипт также помечен 'defer' и теперь может быть в <body> -->
-    <script defer>
-        document.getElementById('ndef-form').addEventListener('submit', function(event) {
-            event.preventDefault();
+    <!-- 2. ГЛАВНОЕ ИСПРАВЛЕНИЕ: Весь наш код обернут в событие, которое ждет полной загрузки страницы -->
+    <script>
+        // Ждем, пока весь HTML-документ будет загружен и готов
+        document.addEventListener('DOMContentLoaded', function() {
+            
+            // Находим нашу форму
+            const form = document.getElementById('ndef-form');
 
-            const uri = document.getElementById('uri').value;
-            const title = document.getElementById('title').value;
-            const action = document.getElementById('action').value;
-            const mimeType = document.getElementById('mime_type').value;
-            const sizeStr = document.getElementById('size').value;
+            // Вешаем обработчик на событие отправки формы
+            form.addEventListener('submit', function(event) {
+                // Отменяем стандартное поведение (перезагрузку страницы)
+                event.preventDefault();
 
-            if (!uri) {
-                alert("URI является обязательным полем.");
-                return;
-            }
-
-            const spOptions = {};
-
-            if (title) {
-                spOptions.title = { text: title, lang: 'ru' };
-            }
-
-            if (action && action !== 'none') {
-                spOptions.action = action;
-            }
-
-            if (mimeType) {
-                spOptions.type = mimeType;
-            }
-
-            if (sizeStr) {
-                const size = parseInt(sizeStr, 10);
-                if (!isNaN(size) && size >= 0) {
-                    spOptions.size = size;
+                // НОВАЯ ПРОВЕРКА: Убеждаемся, что библиотека 'ndef' загрузилась
+                if (typeof ndef === 'undefined') {
+                    alert("Критическая ошибка: Не удалось загрузить NFC-библиотеку.\n\nВозможные причины:\n1. Нет подключения к интернету.\n2. Блокировщик рекламы (AdBlock) мешает загрузке.\n\nПожалуйста, проверьте соединение, отключите блокировщики для этой страницы и обновите её.");
+                    return;
                 }
-            }
 
-            try {
-                // Теперь эта переменная 'ndef' будет гарантированно доступна
-                const smartPosterRecord = ndef.smartPoster(uri, spOptions);
-                const message = [smartPosterRecord];
-                const messageBytes = ndef.encodeMessage(message);
+                // --- Теперь остальная часть кода в безопасности, 'ndef' точно существует ---
+                const uri = document.getElementById('uri').value;
+                const title = document.getElementById('title').value;
+                const action = document.getElementById('action').value;
+                const mimeType = document.getElementById('mime_type').value;
+                const sizeStr = document.getElementById('size').value;
 
-                const blob = new Blob([messageBytes], { type: 'application/octet-stream' });
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
-                link.download = 'ntag216.bin';
+                if (!uri) {
+                    alert("URI является обязательным полем.");
+                    return;
+                }
 
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                URL.revokeObjectURL(link.href);
+                const spOptions = {};
 
-            } catch (e) {
-                console.error(e);
-                alert("Произошла ошибка при создании NDEF-записи: " + e.message);
-            }
+                if (title) { spOptions.title = { text: title, lang: 'ru' }; }
+                if (action && action !== 'none') { spOptions.action = action; }
+                if (mimeType) { spOptions.type = mimeType; }
+                if (sizeStr) {
+                    const size = parseInt(sizeStr, 10);
+                    if (!isNaN(size) && size >= 0) { spOptions.size = size; }
+                }
+
+                try {
+                    const smartPosterRecord = ndef.smartPoster(uri, spOptions);
+                    const message = [smartPosterRecord];
+                    const messageBytes = ndef.encodeMessage(message);
+
+                    const blob = new Blob([messageBytes], { type: 'application/octet-stream' });
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = 'ntag216.bin';
+
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(link.href);
+
+                } catch (e) {
+                    console.error(e);
+                    alert("Произошла ошибка при создании NDEF-записи: " + e.message);
+                }
+            });
         });
     </script>
 </body>
