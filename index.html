@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Генератор метки NTAG216 (Frontend-only)</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; padding: 20px; max-width: 600px; margin: auto; background-color: #f4f4f4; }
+        .container { background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: #333; }
+        label { display: block; margin-bottom: 5px; font-weight: 600; color: #555; }
+        input[type="text"], input[type="url"], input[type="number"], select {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #007BFF;
+        }
+        .help-text { font-size: 0.9em; color: #666; margin-top: -10px; margin-bottom: 15px; }
+        button {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 4px;
+            background-color: #007BFF;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        button:hover { background-color: #0056b3; }
+    </style>
+
+    <!-- ИЗМЕНЕНИЕ 1: Добавлен атрибут 'defer', чтобы скрипт загружался, но не выполнялся до готовности страницы -->
+    <script src="https://cdn.jsdelivr.net/npm/ndef@1/dist/ndef.js" defer></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Генератор NDEF для NTAG216</h1>
+        <form id="ndef-form">
+            <label for="uri">URI (ссылка):</label>
+            <input type="url" id="uri" name="uri" placeholder="https://example.com" required>
+            <p class="help-text">Полный URL, включая http:// или https://. Это обязательное поле.</p>
+
+            <label for="title">Заголовок (текст):</label>
+            <input type="text" id="title" name="title" placeholder="Название ссылки">
+            <p class="help-text">Текстовое описание, которое увидит пользователь.</p>
+
+            <label for="action">Действие:</label>
+            <select id="action" name="action">
+                <option value="none">Не указано (действие по умолчанию)</option>
+                <option value="exec">Открыть для выполнения ('do')</option>
+                <option value="save">Открыть для сохранения ('save')</option>
+                <option value="edit">Открыть для редактирования ('edit')</option>
+            </select>
+            <p class="help-text">Рекомендуемое действие для устройства, которое считывает метку.</p>
+
+            <label for="mime_type">MIME-тип ресурса:</label>
+            <input type="text" id="mime_type" name="mime_type" placeholder="text/html">
+            <p class="help-text">Тип контента по ссылке (например, 'image/jpeg', 'text/html').</p>
+
+            <label for="size">Размер ресурса (в байтах):</label>
+            <input type="number" id="size" name="size" placeholder="1024" min="0">
+            <p class="help-text">Размер файла по ссылке. Только целое число.</p>
+
+            <button type="submit">Сгенерировать .bin файл</button>
+        </form>
+    </div>
+
+    <!-- ИЗМЕНЕНИЕ 2: Основной скрипт также помечен 'defer' и теперь может быть в <body> -->
+    <script defer>
+        document.getElementById('ndef-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            const uri = document.getElementById('uri').value;
+            const title = document.getElementById('title').value;
+            const action = document.getElementById('action').value;
+            const mimeType = document.getElementById('mime_type').value;
+            const sizeStr = document.getElementById('size').value;
+
+            if (!uri) {
+                alert("URI является обязательным полем.");
+                return;
+            }
+
+            const spOptions = {};
+
+            if (title) {
+                spOptions.title = { text: title, lang: 'ru' };
+            }
+
+            if (action && action !== 'none') {
+                spOptions.action = action;
+            }
+
+            if (mimeType) {
+                spOptions.type = mimeType;
+            }
+
+            if (sizeStr) {
+                const size = parseInt(sizeStr, 10);
+                if (!isNaN(size) && size >= 0) {
+                    spOptions.size = size;
+                }
+            }
+
+            try {
+                // Теперь эта переменная 'ndef' будет гарантированно доступна
+                const smartPosterRecord = ndef.smartPoster(uri, spOptions);
+                const message = [smartPosterRecord];
+                const messageBytes = ndef.encodeMessage(message);
+
+                const blob = new Blob([messageBytes], { type: 'application/octet-stream' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = 'ntag216.bin';
+
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+
+            } catch (e) {
+                console.error(e);
+                alert("Произошла ошибка при создании NDEF-записи: " + e.message);
+            }
+        });
+    </script>
+</body>
+</html>
