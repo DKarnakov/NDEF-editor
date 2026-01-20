@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Генератор vCard URL</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 20px auto; padding: 0 15px; }
+        h1, h2 { color: #0056b3; }
+        form { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        fieldset { border: 1px solid #ccc; border-radius: 8px; padding: 15px; grid-column: 1 / -1; }
+        legend { font-weight: bold; color: #333; padding: 0 10px; }
+        label { display: block; margin-bottom: 5px; font-weight: 500; }
+        input[type="text"], input[type="email"], input[type="tel"], input[type="date"], input[type="url"], select, textarea {
+            width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;
+        }
+        .full-width { grid-column: 1 / -1; }
+        .button-container { grid-column: 1 / -1; margin-top: 20px; }
+        button { background-color: #007bff; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        button:hover { background-color: #0056b3; }
+        #output-container { margin-top: 20px; }
+        #generated-url { width: 100%; min-height: 80px; font-family: monospace; font-size: 12px; }
+        #copy-button { background-color: #28a745; margin-top: 10px; }
+        #copy-button:hover { background-color: #1e7e34; }
+        #download-link-container { margin-top: 15px; font-size: 18px; }
+        .custom-field-row { display: flex; gap: 10px; margin-bottom: 10px; }
+        .custom-field-row input { flex: 1; }
+    </style>
+</head>
+<body>
+
+    <h1>Генератор URL для vCard</h1>
+    <p>Заполните форму ниже, чтобы создать URL для генератора vCard. После генерации вы сможете скопировать URL или сразу перейти по ссылке для скачивания .vcf файла.</p>
+
+    <form id="vcard-form">
+        <fieldset class="full-width">
+            <legend>Основная информация</legend>
+            <label for="fn">Полное имя (FN)</label>
+            <input type="text" id="fn" name="fn" placeholder="Дмитрий Карнаков" required>
+
+            <label for="n_last">Фамилия</label>
+            <input type="text" id="n_last" name="n_last" placeholder="Карнаков">
+
+            <label for="n_first">Имя</label>
+            <input type="text" id="n_first" name="n_first" placeholder="Дмитрий">
+            
+            <label for="nickname">Псевдоним (Nickname)</label>
+            <input type="text" id="nickname" name="nickname" placeholder="DK">
+            
+            <label for="bday">Дата рождения (BDAY)</label>
+            <input type="date" id="bday" name="bday">
+
+            <label for="gender">Пол (GENDER)</label>
+            <select id="gender" name="gender">
+                <option value="">Не указано</option>
+                <option value="M">Мужской</option>
+                <option value="F">Женский</option>
+                <option value="O">Другой</option>
+                <option value="N">Не применимо</option>
+                <option value="U">Неизвестно</option>
+            </select>
+            
+            <label for="photo">URL фотографии (PHOTO)</label>
+            <input type="url" id="photo" name="photo" placeholder="https://example.com/photo.jpg">
+        </fieldset>
+
+        <fieldset class="full-width">
+            <legend>Контактная информация</legend>
+            <label for="tel_cell">Мобильный телефон</label>
+            <input type="tel" id="tel_cell" name="tel_cell" placeholder="+79123456789">
+            
+            <label for="tel_work">Рабочий телефон</label>
+            <input type="tel" id="tel_work" name="tel_work" placeholder="+74951234567">
+            
+            <label for="email_work">Рабочая почта</label>
+            <input type="email" id="email_work" name="email_work" placeholder="work@example.com">
+            
+            <label for="email_home">Личная почта</label>
+            <input type="email" id="email_home" name="email_home" placeholder="home@example.com">
+            
+            <label for="url">Веб-сайт (URL)</label>
+            <input type="url" id="url" name="url" placeholder="https://example.com">
+        </fieldset>
+        
+        <fieldset class="full-width">
+            <legend>Работа</legend>
+            <label for="org">Организация (ORG)</label>
+            <input type="text" id="org" name="org" placeholder="ООО 'Пример'">
+            
+            <label for="title">Должность (TITLE)</label>
+            <input type="text" id="title" name="title" placeholder="Инженер">
+        </fieldset>
+        
+        <fieldset class="full-width">
+            <legend>Адрес (ADR)</legend>
+            <label for="adr_street">Улица, дом</label>
+            <input type="text" id="adr_street" name="adr_street" placeholder="ул. Ленина, д. 1">
+            
+            <label for="adr_city">Город</label>
+            <input type="text" id="adr_city" name="adr_city" placeholder="Москва">
+
+            <label for="adr_region">Регион/Область</label>
+            <input type="text" id="adr_region" name="adr_region" placeholder="Московская область">
+
+            <label for="adr_zip">Почтовый индекс</label>
+            <input type="text" id="adr_zip" name="adr_zip" placeholder="101000">
+
+            <label for="adr_country">Страна</label>
+            <input type="text" id="adr_country" name="adr_country" placeholder="Россия">
+        </fieldset>
+        
+        <fieldset class="full-width">
+            <legend>Дополнительно</legend>
+            <label for="note">Заметка (NOTE)</label>
+            <textarea id="note" name="note" rows="4" placeholder="Любая дополнительная информация..."></textarea>
+        </fieldset>
+
+        <fieldset class="full-width">
+            <legend>Пользовательские поля (X-)</legend>
+            <div id="custom-fields-container">
+                <!-- Сюда будут добавляться поля -->
+            </div>
+            <button type="button" onclick="addCustomField()">+ Добавить поле</button>
+        </fieldset>
+
+        <div class="button-container full-width">
+            <button type="button" onclick="generateUrl()">Сгенерировать URL</button>
+        </div>
+    </form>
+
+    <div id="output-container" class="full-width" hidden>
+        <h2>Результат</h2>
+        <label for="generated-url">Сгенерированный URL:</label>
+        <textarea id="generated-url" readonly></textarea>
+        <button id="copy-button" onclick="copyUrl()">Копировать URL</button>
+        <div id="download-link-container">
+            <a href="#" id="download-link" target="_blank">Перейти по ссылке для генерации и скачивания vCard</a>
+        </div>
+    </div>
+
+    <script>
+        function addCustomField() {
+            const container = document.getElementById('custom-fields-container');
+            const newRow = document.createElement('div');
+            newRow.className = 'custom-field-row';
+            newRow.innerHTML = `
+                <input type="text" class="custom-field-key" placeholder="Название поля (например, X-Telegram)">
+                <input type="text" class="custom-field-value" placeholder="Значение">
+            `;
+            container.appendChild(newRow);
+        }
+
+        function generateUrl() {
+            const form = document.getElementById('vcard-form');
+            const params = new URLSearchParams();
+            
+            // Простые поля
+            const fields = ['fn', 'nickname', 'bday', 'gender', 'photo', 'tel_cell', 'tel_work', 'email_work', 'email_home', 'url', 'org', 'title', 'note'];
+            fields.forEach(id => {
+                const element = form.elements[id];
+                if (element && element.value) {
+                    params.set(id, element.value);
+                }
+            });
+
+            // Структурированное поле N (Имя)
+            const n_last = form.elements['n_last'].value || '';
+            const n_first = form.elements['n_first'].value || '';
+            if (n_last || n_first) {
+                params.set('n', `${n_last};${n_first};;;`);
+            }
+
+            // Структурированное поле ADR (Адрес)
+            const adr_street = form.elements['adr_street'].value || '';
+            const adr_city = form.elements['adr_city'].value || '';
+            const adr_region = form.elements['adr_region'].value || '';
+            const adr_zip = form.elements['adr_zip'].value || '';
+            const adr_country = form.elements['adr_country'].value || '';
+            if (adr_street || adr_city || adr_region || adr_zip || adr_country) {
+                params.set('adr', `;;${adr_street};${adr_city};${adr_region};${adr_zip};${adr_country}`);
+            }
+
+            // Пользовательские поля X-
+            document.querySelectorAll('.custom-field-row').forEach(row => {
+                const keyInput = row.querySelector('.custom-field-key');
+                const valueInput = row.querySelector('.custom-field-value');
+                if (keyInput && valueInput && keyInput.value && valueInput.value) {
+                    params.set(keyInput.value, valueInput.value);
+                }
+            });
+
+            const queryString = params.toString();
+            const baseURL = window.location.href.replace('form.html', 'index.html');
+            const fullURL = `${baseURL}?${queryString}`;
+
+            document.getElementById('generated-url').value = fullURL;
+            document.getElementById('download-link').href = fullURL;
+            document.getElementById('output-container').hidden = false;
+        }
+
+        function copyUrl() {
+            const urlText = document.getElementById('generated-url');
+            urlText.select();
+            navigator.clipboard.writeText(urlText.value).then(() => {
+                const copyButton = document.getElementById('copy-button');
+                const originalText = copyButton.textContent;
+                copyButton.textContent = 'Скопировано!';
+                setTimeout(() => {
+                    copyButton.textContent = originalText;
+                }, 2000);
+            }).catch(err => {
+                console.error('Ошибка копирования: ', err);
+                alert('Не удалось скопировать URL.');
+            });
+        }
+    </script>
+</body>
+</html>
