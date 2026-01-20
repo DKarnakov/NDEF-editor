@@ -88,7 +88,6 @@
         // --- Обработчик предпросмотра иконки ---
         const iconFileInput = document.getElementById('icon-file');
         const iconPreview = document.getElementById('icon-preview');
-        const iconMimeTypeInput = document.getElementById('icon-mime-type');
 
         iconFileInput.addEventListener('change', (event) => {
             const file = event.target.files[0];
@@ -102,12 +101,10 @@
                 reader.onload = (e) => {
                     iconPreview.src = e.target.result;
                     iconPreview.style.display = 'block';
-                    iconMimeTypeInput.value = file.type;
                 };
                 reader.readAsDataURL(file);
             } else {
                  iconPreview.style.display = 'none';
-                 iconMimeTypeInput.value = '';
             }
         });
 
@@ -136,63 +133,63 @@
             payload[0] = prefixCode;
             payload.set(uriBytes, 1);
 
-            return createNdefRecord(0x01, textEncoder.encode("U"), payload, 'U');
+            return createNdefRecord(0x01, textEncoder.encode("U"), payload);
         }
 
         function createTextRecord(text, lang) {
             const langBytes = textEncoder.encode(lang);
             const textBytes = textEncoder.encode(text);
-            const status = langBytes.length; // UTF-8, lang code length
+            const status = langBytes.length;
             const payload = new Uint8Array(1 + langBytes.length + textBytes.length);
             payload[0] = status;
             payload.set(langBytes, 1);
             payload.set(textBytes, 1 + langBytes.length);
 
-            return createNdefRecord(0x01, textEncoder.encode("T"), payload, 'T');
+            return createNdefRecord(0x01, textEncoder.encode("T"), payload);
         }
 
         function createMimeRecord(mimeType, data) {
-            return createNdefRecord(0x02, textEncoder.encode(mimeType), data, 'mime');
-        }
-        
-        function createExternalRecord(domain, type, data) {
-             const recordType = textEncoder.encode(`${domain}:${type}`);
-             return createNdefRecord(0x04, recordType, data, 'external');
+            return createNdefRecord(0x02, textEncoder.encode(mimeType), data);
         }
 
         function createSpSubRecord(type, payload) {
-            // В SmartPoster вложенные записи - это стандартные NDEF записи.
             return createNdefRecord(0x01, textEncoder.encode(type), payload);
         }
 
-        function createNdefRecord(tnf, type, payload, recordType) {
-             const isShort = payload.length < 256;
-             const header = new Uint8Array(isShort ? (2 + type.length) : (5 + type.length));
-             let offset = 0;
+        // *** ИСПРАВЛЕННАЯ ФУНКЦИЯ ***
+        function createNdefRecord(tnf, type, payload) {
+            const isShort = payload.length < 256;
+            
+            // Header: 1 (flags) + 1 (typeLen) + (1 or 4 for payloadLen) + type.length
+            const headerSize = 1 + 1 + (isShort ? 1 : 4) + type.length;
+            const header = new Uint8Array(headerSize);
+            
+            let offset = 0;
 
-             header[offset++] = (tnf & 0x07) | (isShort ? 0x10 : 0x00) | (recordType ? 0xC0 : 0x80); // MB=1, ME=1, SR
-             header[offset++] = type.length;
-             
-             if(isShort) {
+            // 1. Flags (TNF, SR). MB/ME флаги устанавливаются позже, при сборке.
+            header[offset++] = (tnf & 0x07) | (isShort ? 0x10 : 0x00);
+
+            // 2. Type Length
+            header[offset++] = type.length;
+            
+            // 3. Payload Length
+            if (isShort) {
                 header[offset++] = payload.length;
-             } else {
-                header[offset++] = (payload.length >> 24) & 0xFF;
-                header[offset++] = (payload.length >> 16) & 0xFF;
-                header[offset++] = (payload.length >> 8) & 0xFF;
+            } else {
+                header[offset++] = (payload.length >>> 24) & 0xFF;
+                header[offset++] = (payload.length >>> 16) & 0xFF;
+                header[offset++] = (payload.length >>> 8)  & 0xFF;
                 header[offset++] = payload.length & 0xFF;
-             }
-             
-             header.set(type, offset);
+            }
 
+            // 4. Type
+            header.set(type, offset);
+            
             const fullRecord = new Uint8Array(header.length + payload.length);
-            fullRecord.set(header);
+            fullRecord.set(header, 0);
             fullRecord.set(payload, header.length);
             
-            // Эта структура просто для удобства, она не используется для генерации байтов.
-            return {
-                bytes: fullRecord,
-                type: recordType
-            };
+            return fullRecord; // Возвращаем напрямую массив байтов
         }
         
         // --- Основная логика ---
@@ -204,13 +201,13 @@
 
             // 1. URI (обязательно)
             const uri = document.getElementById('uri').value;
-            subRecords.push(createUriRecord(uri).bytes);
+            subRecords.push(createUriRecord(uri));
 
             // 2. Title (опционально)
             const title = document.getElementById('title').value;
             if (title) {
                 const lang = document.getElementById('lang').value || 'en';
-                subRecords.push(createTextRecord(title, lang).bytes);
+                subRecords.push(createTextRecord(title, lang));
             }
 
             // 3. Action (опционально)
@@ -240,7 +237,7 @@
                 const mimeType = file.type;
                 const arrayBuffer = await file.arrayBuffer();
                 const iconData = new Uint8Array(arrayBuffer);
-                subRecords.push(createMimeRecord(mimeType, iconData).bytes);
+                subRecords.push(createMimeRecord(mimeType, iconData));
             }
 
             // Объединяем вложенные записи в одну полезную нагрузку
@@ -248,34 +245,37 @@
             const spPayload = new Uint8Array(spPayloadLength);
             let currentOffset = 0;
             subRecords.forEach((rec, index) => {
-                 // Корректируем флаги MB/ME для вложенных записей
-                 rec[0] = (index === 0) ? (rec[0] | 0x80) : (rec[0] & ~0x80); // Message Begin
-                 rec[0] = (index === subRecords.length - 1) ? (rec[0] | 0x40) : (rec[0] & ~0x40); // Message End
+                 // Корректируем флаги MB/ME (Message Begin / Message End) для вложенных записей
+                 if (index === 0) rec[0] |= 0x80; // Устанавливаем флаг MB для первой записи
+                 if (index === subRecords.length - 1) rec[0] |= 0x40; // Устанавливаем флаг ME для последней
+                 
                  spPayload.set(rec, currentOffset);
                  currentOffset += rec.length;
             });
             
             // Создаем основную запись SmartPoster
-            const spRecord = createNdefRecord(0x01, textEncoder.encode("Sp"), spPayload).bytes;
+            const spRecordBytes = createNdefRecord(0x01, textEncoder.encode("Sp"), spPayload);
+            // *** ИСПРАВЛЕНИЕ: Устанавливаем флаги MB и ME для основной записи, т.к. она одна в сообщении ***
+            spRecordBytes[0] |= 0xC0; // 0xC0 = 0b11000000 (MB=1, ME=1)
             
             // Формируем TLV для NDEF сообщения
-            const ndefMessage = new Uint8Array(2 + spRecord.length + 1);
+            const ndefMessage = new Uint8Array(2 + spRecordBytes.length + 1);
             ndefMessage[0] = 0x03; // NDEF Message TLV
-            ndefMessage[1] = spRecord.length; // Length
-            ndefMessage.set(spRecord, 2);
-            ndefMessage[2 + spRecord.length] = 0xFE; // Terminator TLV
+            ndefMessage[1] = spRecordBytes.length; // Length
+            ndefMessage.set(spRecordBytes, 2);
+            ndefMessage[2 + spRecordBytes.length] = 0xFE; // Terminator TLV
 
             // Создаем полный дамп памяти NTAG216 (924 байта)
             const ntag216Memory = new Uint8Array(924).fill(0);
             
             // Записываем стандартный заголовок NTAG216 (UID, lock bytes и т.д.)
-            // Это плейсхолдеры, Chameleon их проигнорирует или перезапишет реальными.
+            // Chameleon их проигнорирует или перезапишет реальными.
             ntag216Memory.set([0x04, 0x00, 0x00, 0x00], 0); // UID0-3, где 0x04 - производитель NXP
             ntag216Memory.set([0x00, 0x00, 0x00, 0x00], 4); // UID4-6, BCC1
             ntag216Memory.set([0x00, 0x00, 0x48, 0x00], 8); // Internal, Lock bytes, 0x48 - статичные lock bits
 
             // Записываем Capability Container (CC) в страницу 3 (адрес 0x0C)
-            // E1 10 6D 00: NDEF, v1.0, 872 байта данных, чтение/запись без пароля
+            // E1 10 6D 00: NDEF, v1.0, 872 байта данных (0x6D * 8), чтение/запись без пароля
             const memorySizeInBytes = 872;
             const ccPage = [0xE1, 0x10, Math.floor(memorySizeInBytes / 8), 0x00];
             ntag216Memory.set(ccPage, 12);
