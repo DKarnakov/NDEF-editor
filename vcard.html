@@ -2,66 +2,84 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>vCard 3.0 Generator</title>
+    <title>vCard Generator</title>
 </head>
 <body>
 
 <script>
     function generateVCard() {
+        // --- Карта для расшифровки коротких параметров ---
+        const map = {
+            l: 'n_last', f: 'n_first', m: 'n_middle', nn: 'nickname',
+            b: 'bday', p: 'photo',
+            as: 'adr_street', aci: 'adr_city', ar: 'adr_region', az: 'adr_zip', aco: 'adr_country',
+            tc: 'tel_cell', tw: 'tel_work', th: 'tel_home',
+            ew: 'email_work', eh: 'email_home', u: 'url',
+            o: 'org', t: 'title', r: 'role',
+            no: 'note'
+            // Пользовательские поля X- передаются как есть
+        };
+
         const params = new URLSearchParams(window.location.search);
-        
+        const data = {};
+        for (const [key, value] of params.entries()) {
+            const longKey = map[key] || key; // Если ключа нет в карте, используем его как есть (для X- полей)
+            data[longKey] = value;
+        }
+
         let vCard = "BEGIN:VCARD\n";
         vCard += "VERSION:3.0\n";
 
-        // --- Имена ---
-        if (params.has('fn')) vCard += `FN;CHARSET=UTF-8:${params.get('fn')}\n`;
-        if (params.has('n')) vCard += `N;CHARSET=UTF-8:${params.get('n')}\n`;
-        if (params.has('nickname')) vCard += `NICKNAME;CHARSET=UTF-8:${params.get('nickname')}\n`;
+        // --- Генерация FN и N ---
+        const n_parts = [data.n_last || '', data.n_first || '', data.n_middle || '', '', ''];
+        const fn_parts = [data.n_last, data.n_first, data.n_middle].filter(Boolean); // Отфильтровываем пустые значения
+        if (fn_parts.length > 0) {
+            vCard += `FN;CHARSET=UTF-8:${fn_parts.join(' ')}\n`;
+            vCard += `N;CHARSET=UTF-8:${n_parts.join(';')}\n`;
+        }
+        
+        if (data.nickname) vCard += `NICKNAME;CHARSET=UTF-8:${data.nickname}\n`;
+        if (data.photo) vCard += `PHOTO;VALUE=URL:${data.photo}\n`;
+        if (data.bday) vCard += `BDAY:${data.bday}\n`;
 
-        // --- Фото и дата рождения ---
-        if (params.has('photo')) vCard += `PHOTO;VALUE=URL:${params.get('photo')}\n`;
-        if (params.has('bday')) vCard += `BDAY:${params.get('bday')}\n`;
+        // --- Адрес (теперь рабочий) ---
+        const adr_parts = [data.adr_street, data.adr_city, data.adr_region, data.adr_zip, data.adr_country];
+        if (adr_parts.some(Boolean)) {
+            vCard += `ADR;TYPE=WORK;CHARSET=UTF-8:;;${adr_parts.join(';')}\n`;
+        }
 
-        // --- Адрес ---
-        if (params.has('adr')) vCard += `ADR;TYPE=HOME;CHARSET=UTF-8:;;${params.get('adr')}\n`;
+        // --- Телефоны ---
+        if (data.tel_cell) vCard += `TEL;TYPE=CELL,VOICE:${data.tel_cell}\n`;
+        if (data.tel_work) vCard += `TEL;TYPE=WORK,VOICE:${data.tel_work}\n`;
+        if (data.tel_home) vCard += `TEL;TYPE=HOME,VOICE:${data.tel_home}\n`;
 
-        // --- Телефоны (формат vCard 3.0) ---
-        if (params.has('tel_cell')) vCard += `TEL;TYPE=CELL,VOICE:${params.get('tel_cell')}\n`;
-        if (params.has('tel_work')) vCard += `TEL;TYPE=WORK,VOICE:${params.get('tel_work')}\n`;
-        if (params.has('tel_home')) vCard += `TEL;TYPE=HOME,VOICE:${params.get('tel_home')}\n`;
-
-        // --- Электронная почта и веб ---
-        if (params.has('email_work')) vCard += `EMAIL;TYPE=PREF,INTERNET:${params.get('email_work')}\n`;
-        if (params.has('email_home')) vCard += `EMAIL;TYPE=INTERNET:${params.get('email_home')}\n`;
-        if (params.has('url')) vCard += `URL:${params.get('url')}\n`;
+        // --- Email и Web ---
+        if (data.email_work) vCard += `EMAIL;TYPE=PREF,INTERNET:${data.email_work}\n`;
+        if (data.email_home) vCard += `EMAIL;TYPE=INTERNET:${data.email_home}\n`;
+        if (data.url) vCard += `URL:${data.url}\n`;
 
         // --- Работа ---
-        if (params.has('title')) vCard += `TITLE;CHARSET=UTF-8:${params.get('title')}\n`;
-        if (params.has('role')) vCard += `ROLE;CHARSET=UTF-8:${params.get('role')}\n`;
-        if (params.has('org')) vCard += `ORG;CHARSET=UTF-8:${params.get('org')}\n`;
+        if (data.title) vCard += `TITLE;CHARSET=UTF-8:${data.title}\n`;
+        if (data.role) vCard += `ROLE;CHARSET=UTF-8:${data.role}\n`;
+        if (data.org) vCard += `ORG;CHARSET=UTF-8:${data.org}\n`;
 
         // --- Прочие поля ---
-        if (params.has('note')) vCard += `NOTE;CHARSET=UTF-8:${params.get('note')}\n`;
-        if (params.has('tz')) vCard += `TZ:${params.get('tz')}\n`;
-        if (params.has('geo')) {
-            const geoVal = params.get('geo').replace(/,/g, ';');
-            vCard += `GEO:${geoVal}\n`;
-        }
+        if (data.note) vCard += `NOTE;CHARSET=UTF-8:${data.note}\n`;
         vCard += `REV:${new Date().toISOString()}\n`;
-
-        // --- Пользовательские поля (X-name) ---
-        params.forEach((value, key) => {
+        
+        // --- Пользовательские поля ---
+        for (const key in data) {
             if (key.toLowerCase().startsWith('x-')) {
-                vCard += `${key.toUpperCase()};CHARSET=UTF-8:${value}\n`;
+                vCard += `${key.toUpperCase()};CHARSET=UTF-8:${data[key]}\n`;
             }
-        });
-
+        }
+        
         vCard += "END:VCARD";
 
         const blob = new Blob([vCard], { type: 'text/vcard;charset=utf-8' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        const fileName = params.get('fn') ? `${params.get('fn').replace(/ /g, '_')}.vcf` : 'contact.vcf';
+        const fileName = fn_parts.length > 0 ? `${fn_parts.join('_')}.vcf` : 'contact.vcf';
         link.download = fileName;
         document.body.appendChild(link);
         link.click();
