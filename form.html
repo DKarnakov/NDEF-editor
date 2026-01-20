@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Генератор URL для vCard 3.0</title>
+    <title>Генератор URL для vCard</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 20px auto; padding: 0 15px; }
         h1, h2 { color: #0056b3; }
@@ -10,9 +10,7 @@
         fieldset { border: 1px solid #ccc; border-radius: 8px; padding: 15px; grid-column: 1 / -1; }
         legend { font-weight: bold; color: #333; padding: 0 10px; }
         label { display: block; margin-bottom: 5px; font-weight: 500; }
-        input[type="text"], input[type="email"], input[type="tel"], input[type="date"], input[type="url"], textarea {
-            width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;
-        }
+        input, textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
         .full-width { grid-column: 1 / -1; }
         #output-container { margin-top: 20px; }
         #generated-url { width: 100%; min-height: 80px; font-family: monospace; font-size: 12px; cursor: pointer; }
@@ -20,96 +18,79 @@
         #download-link-container { margin-top: 15px; font-size: 18px; }
         #copy-feedback { color: #28a745; font-weight: bold; margin-left: 10px; transition: opacity 0.5s; }
         .custom-field-row { display: flex; gap: 10px; margin-bottom: 10px; }
-        .custom-field-row input { flex: 1; }
     </style>
 </head>
 <body>
 
-    <h1>Генератор URL для vCard 3.0</h1>
-    <p>Начните заполнять форму, и ссылка для генерации vCard будет создаваться автоматически. Кликните на поле со ссылкой, чтобы скопировать её.</p>
+    <h1>Генератор URL для vCard</h1>
+    <p>Ссылка будет сгенерирована автоматически. Кликните на поле со ссылкой, чтобы скопировать её.</p>
 
     <form id="vcard-form" oninput="generateUrl()">
         <fieldset class="full-width">
             <legend>Основная информация</legend>
-            <label for="fn">Полное имя (FN)</label>
-            <input type="text" id="fn" name="fn" placeholder="Карнаков Дмитрий Иванович" required>
-
-            <label for="n_last">Фамилия</label>
-            <input type="text" id="n_last" name="n_last" placeholder="Карнаков">
-
-            <label for="n_first">Имя</label>
-            <input type="text" id="n_first" name="n_first" placeholder="Дмитрий">
-            
-            <label for="n_middle">Отчество</label>
-            <input type="text" id="n_middle" name="n_middle" placeholder="Иванович">
-
-            <label for="nickname">Псевдоним (Nickname)</label>
-            <input type="text" id="nickname" name="nickname" placeholder="DK">
-            
-            <label for="bday">Дата рождения (BDAY)</label>
-            <input type="date" id="bday" name="bday">
-            
-            <label for="photo">URL фотографии (PHOTO)</label>
-            <input type="url" id="photo" name="photo" placeholder="https://example.com/photo.jpg">
+            <!-- Короткие ID: l, f, m, nn, b, p -->
+            <label for="l">Фамилия</label>
+            <input type="text" id="l" placeholder="Карнаков" required>
+            <label for="f">Имя</label>
+            <input type="text" id="f" placeholder="Дмитрий" required>
+            <label for="m">Отчество</label>
+            <input type="text" id="m" placeholder="Иванович">
+            <label for="nn">Псевдоним</label>
+            <input type="text" id="nn" placeholder="DK">
+            <label for="b">Дата рождения</label>
+            <input type="date" id="b">
+            <label for="p">URL фотографии</label>
+            <input type="url" id="p" placeholder="https://example.com/photo.jpg">
         </fieldset>
 
         <fieldset class="full-width">
             <legend>Контактная информация</legend>
-            <label for="tel_cell">Мобильный телефон</label>
-            <input type="tel" id="tel_cell" name="tel_cell" placeholder="+79123456789">
-            
-            <label for="tel_work">Рабочий телефон</label>
-            <input type="tel" id="tel_work" name="tel_work" placeholder="+74951234567">
-            
-            <label for="tel_home">Домашний телефон</label>
-            <input type="tel" id="tel_home" name="tel_home" placeholder="+74998765432">
-
-            <label for="email_work">Рабочая почта</label>
-            <input type="email" id="email_work" name="email_work" placeholder="work@example.com">
-            
-            <label for="email_home">Личная почта</label>
-            <input type="email" id="email_home" name="home@example.com">
-            
-            <label for="url">Веб-сайт (URL)</label>
-            <input type="url" id="url" name="url" placeholder="https://example.com">
+            <!-- Короткие ID: tc, tw, th, ew, eh, u -->
+            <label for="tc">Мобильный телефон</label>
+            <input type="tel" id="tc" placeholder="+79123456789">
+            <label for="tw">Рабочий телефон</label>
+            <input type="tel" id="tw" placeholder="+74951234567">
+            <label for="th">Домашний телефон</label>
+            <input type="tel" id="th" placeholder="+74998765432">
+            <label for="ew">Рабочая почта</label>
+            <input type="email" id="ew" placeholder="work@example.com">
+            <label for="eh">Личная почта</label>
+            <input type="email" id="eh" placeholder="home@example.com">
+            <label for="u">Веб-сайт</label>
+            <input type="url" id="u" placeholder="https://example.com">
         </fieldset>
         
         <fieldset class="full-width">
             <legend>Работа</legend>
-            <label for="org">Организация (ORG)</label>
-            <input type="text" id="org" name="org" placeholder="ООО 'Пример'">
-            
-            <label for="title">Должность (TITLE)</label>
-            <input type="text" id="title" name="title" placeholder="Инженер">
-
-            <label for="role">Роль (ROLE)</label>
-            <input type="text" id="role" name="role" placeholder="Разработчик">
+            <!-- Короткие ID: o, t, r -->
+            <label for="o">Организация</label>
+            <input type="text" id="o" placeholder="ООО 'Пример'">
+            <label for="t">Должность</label>
+            <input type="text" id="t" placeholder="Инженер">
+            <label for="r">Роль</label>
+            <input type="text" id="r" placeholder="Разработчик">
         </fieldset>
         
         <fieldset class="full-width">
-            <legend>Адрес (ADR)</legend>
-            <label for="adr_street">Улица, дом</label>
-            <input type="text" id="adr_street" name="adr_street" placeholder="ул. Ленина, д. 1">
-            <label for="adr_city">Город</label>
-            <input type="text" id="adr_city" name="adr_city" placeholder="Москва">
-            <label for="adr_region">Регион/Область</label>
-            <input type="text" id="adr_region" name="adr_region" placeholder="Московская область">
-            <label for="adr_zip">Почтовый индекс</label>
-            <input type="text" id="adr_zip" name="adr_zip" placeholder="101000">
-            <label for="adr_country">Страна</label>
-            <input type="text" id="adr_country" name="adr_country" placeholder="Россия">
+            <legend>Рабочий адрес</legend>
+            <!-- Короткие ID: as, aci, ar, az, aco -->
+            <label for="as">Улица, дом</label>
+            <input type="text" id="as" placeholder="ул. Ленина, д. 1">
+            <label for="aci">Город</label>
+            <input type="text" id="aci" placeholder="Москва">
+            <label for="ar">Регион/Область</label>
+            <input type="text" id="ar" placeholder="Московская область">
+            <label for="az">Почтовый индекс</label>
+            <input type="text" id="az" placeholder="101000">
+            <label for="aco">Страна</label>
+            <input type="text" id="aco" placeholder="Россия">
         </fieldset>
         
         <fieldset class="full-width">
             <legend>Дополнительно</legend>
-            <label for="note">Заметка (NOTE)</label>
-            <textarea id="note" name="note" rows="4" placeholder="Любая дополнительная информация..."></textarea>
-        </fieldset>
-
-        <fieldset class="full-width">
-            <legend>Пользовательские поля (X-)</legend>
-            <div id="custom-fields-container"></div>
-            <button type="button" onclick="addCustomField()">+ Добавить поле</button>
+            <!-- Короткий ID: no -->
+            <label for="no">Заметка</label>
+            <textarea id="no" rows="4" placeholder="Любая дополнительная информация..."></textarea>
         </fieldset>
     </form>
 
@@ -123,46 +104,16 @@
     </div>
 
     <script>
-        function addCustomField() {
-            const container = document.getElementById('custom-fields-container');
-            const newRow = document.createElement('div');
-            newRow.className = 'custom-field-row';
-            newRow.innerHTML = `<input type="text" class="custom-field-key" placeholder="Название поля (например, X-Telegram)"><input type="text" class="custom-field-value" placeholder="Значение">`;
-            container.appendChild(newRow);
-            generateUrl();
-        }
-
         function generateUrl() {
             const form = document.getElementById('vcard-form');
             const params = new URLSearchParams();
             
-            const fields = ['fn', 'nickname', 'bday', 'photo', 'tel_cell', 'tel_work', 'tel_home', 'email_work', 'email_home', 'url', 'org', 'title', 'role', 'note'];
-            fields.forEach(id => {
-                const element = form.elements[id];
-                if (element && element.value) params.set(id, element.value);
-            });
-
-            // Собираем поле N с отчеством
-            const n_last = form.elements['n_last'].value || '';
-            const n_first = form.elements['n_first'].value || '';
-            const n_middle = form.elements['n_middle'].value || '';
-            if (n_last || n_first || n_middle) {
-                params.set('n', `${n_last};${n_first};${n_middle};;`);
-            }
-
-            const adr_street = form.elements['adr_street'].value || '';
-            const adr_city = form.elements['adr_city'].value || '';
-            const adr_region = form.elements['adr_region'].value || '';
-            const adr_zip = form.elements['adr_zip'].value || '';
-            const adr_country = form.elements['adr_country'].value || '';
-            if (adr_street || adr_city || adr_region || adr_zip || adr_country) {
-                params.set('adr', `;;${adr_street};${adr_city};${adr_region};${adr_zip};${adr_country}`);
-            }
-
-            document.querySelectorAll('.custom-field-row').forEach(row => {
-                const keyInput = row.querySelector('.custom-field-key');
-                const valueInput = row.querySelector('.custom-field-value');
-                if (keyInput && valueInput && keyInput.value && valueInput.value) params.set(keyInput.value, valueInput.value);
+            // Собираем все поля с ID
+            const inputs = form.querySelectorAll('input, textarea');
+            inputs.forEach(input => {
+                if (input.id && input.value) {
+                    params.set(input.id, input.value);
+                }
             });
 
             const queryString = params.toString();
@@ -189,13 +140,12 @@
                 const feedback = document.getElementById('copy-feedback');
                 feedback.style.opacity = '1';
                 feedback.textContent = 'Скопировано!';
-                setTimeout(() => {
-                    feedback.style.opacity = '0';
-                }, 2000);
-            }).catch(err => {
-                console.error('Ошибка копирования: ', err);
-            });
+                setTimeout(() => { feedback.style.opacity = '0'; }, 2000);
+            }).catch(err => console.error('Ошибка копирования: ', err));
         }
+        
+        // Первый запуск для инициализации
+        generateUrl();
     </script>
 </body>
 </html>
