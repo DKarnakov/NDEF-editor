@@ -2,70 +2,65 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>vCard Generator</title>
+    <title>vCard 3.0 Generator</title>
 </head>
 <body>
 
 <script>
     function generateVCard() {
         const params = new URLSearchParams(window.location.search);
+        
+        // --- vCard 3.0 (RFC 2426) ---
+        // Используем CHARSET=UTF-8 для текстовых полей, как требует стандарт.
         let vCard = "BEGIN:VCARD\n";
-        vCard += "VERSION:4.0\n";
+        vCard += "VERSION:3.0\n";
 
-        // --- Основные поля ---
+        // --- Имена ---
+        // FN (Formatted Name) и N (Name)
         if (params.has('fn')) vCard += `FN;CHARSET=UTF-8:${params.get('fn')}\n`;
-        if (params.has('n')) { // Фамилия;Имя;Отчество;Префикс;Суффикс
-            vCard += `N;CHARSET=UTF-8:${params.get('n')}\n`;
-        }
+        if (params.has('n')) vCard += `N;CHARSET=UTF-8:${params.get('n')}\n`;
+        
         if (params.has('nickname')) vCard += `NICKNAME;CHARSET=UTF-8:${params.get('nickname')}\n`;
-        if (params.has('photo')) vCard += `PHOTO:${params.get('photo')}\n`; // URL или base64
-        if (params.has('bday')) vCard += `BDAY:${params.get('bday')}\n`;
-        if (params.has('anniversary')) vCard += `ANNIVERSARY:${params.get('anniversary')}\n`;
-        if (params.has('gender')) vCard += `GENDER:${params.get('gender')}\n`; // M;F;O;N;U
+
+        // --- Фото и дата рождения ---
+        if (params.has('photo')) vCard += `PHOTO;VALUE=URL:${params.get('photo')}\n`;
+        if (params.has('bday')) vCard += `BDAY:${params.get('bday')}\n`; // YYYY-MM-DD
 
         // --- Адрес ---
-        if (params.has('adr')) { // ;;улица;город;регион;индекс;страна
-            vCard += `ADR;CHARSET=UTF-8:${params.get('adr')}\n`;
-        }
+        // ADR: ;;улица;город;регион;индекс;страна
+        if (params.has('adr')) vCard += `ADR;TYPE=HOME;CHARSET=UTF-8:;;${params.get('adr')}\n`;
 
-        // --- Телефоны ---
-        if (params.has('tel_work')) vCard += `TEL;TYPE=work,voice;VALUE=uri:tel:${params.get('tel_work')}\n`;
-        if (params.has('tel_home')) vCard += `TEL;TYPE=home,voice;VALUE=uri:tel:${params.get('tel_home')}\n`;
-        if (params.has('tel_cell')) vCard += `TEL;TYPE=cell,voice;VALUE=uri:tel:${params.get('tel_cell')}\n`;
+        // --- Телефоны (формат vCard 3.0) ---
+        if (params.has('tel_cell')) vCard += `TEL;TYPE=CELL,VOICE:${params.get('tel_cell')}\n`;
+        if (params.has('tel_work')) vCard += `TEL;TYPE=WORK,VOICE:${params.get('tel_work')}\n`;
+        if (params.has('tel_home')) vCard += `TEL;TYPE=HOME,VOICE:${params.get('tel_home')}\n`;
 
-        // --- Электронная почта ---
-        if (params.has('email_work')) vCard += `EMAIL;TYPE=work:${params.get('email_work')}\n`;
-        if (params.has('email_home')) vCard += `EMAIL;TYPE=home:${params.get('email_home')}\n`;
+        // --- Электронная почта и веб ---
+        if (params.has('email_work')) vCard += `EMAIL;TYPE=PREF,INTERNET:${params.get('email_work')}\n`;
+        if (params.has('email_home')) vCard += `EMAIL;TYPE=INTERNET:${params.get('email_home')}\n`;
+        if (params.has('url')) vCard += `URL:${params.get('url')}\n`;
 
         // --- Работа ---
         if (params.has('title')) vCard += `TITLE;CHARSET=UTF-8:${params.get('title')}\n`;
         if (params.has('role')) vCard += `ROLE;CHARSET=UTF-8:${params.get('role')}\n`;
         if (params.has('org')) vCard += `ORG;CHARSET=UTF-8:${params.get('org')}\n`;
 
-        // --- Веб-сайты и соцсети ---
-        if (params.has('url')) vCard += `URL:${params.get('url')}\n`;
-        if (params.has('impp')) vCard += `IMPP;PREF=1:${params.get('impp')}\n`; // xmpp:user@server.com
-
         // --- Прочие поля ---
         if (params.has('note')) vCard += `NOTE;CHARSET=UTF-8:${params.get('note')}\n`;
-        if (params.has('rev')) vCard += `REV:${new Date().toISOString()}\n`;
-        if (params.has('sound')) vCard += `SOUND:${params.get('sound')}\n`;
-        if (params.has('uid')) vCard += `UID:${params.get('uid')}\n`;
-        if (params.has('clientpidmap')) vCard += `CLIENTPIDMAP:${params.get('clientpidmap')}\n`;
         if (params.has('tz')) vCard += `TZ:${params.get('tz')}\n`;
-        if (params.has('geo')) vCard += `GEO:${params.get('geo')}\n`; // geo:37.386013,-122.082932
-        if (params.has('key')) vCard += `KEY:${params.get('key')}\n`; // URL или base64
-        if (params.has('fburl')) vCard += `FBURL:${params.get('fburl')}\n`;
-        if (params.has('caladruri')) vCard += `CALADRURI:${params.get('caladruri')}\n`;
-        if (params.has('caluri')) vCard += `CALURI:${params.get('caluri')}\n`;
+        if (params.has('geo')) {
+            // В v3.0 разделитель - точка с запятой
+            const geoVal = params.get('geo').replace(/,/g, ';');
+            vCard += `GEO:${geoVal}\n`;
+        }
+        vCard += `REV:${new Date().toISOString()}\n`;
 
-        // --- Кастомные поля (X-name) ---
+        // --- Пользовательские поля (X-name) ---
         params.forEach((value, key) => {
             if (key.toLowerCase().startsWith('x-')) {
                 vCard += `${key.toUpperCase()};CHARSET=UTF-8:${value}\n`;
             }
         });
-
 
         vCard += "END:VCARD";
 
