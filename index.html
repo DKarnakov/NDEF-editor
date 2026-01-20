@@ -3,304 +3,301 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Генератор NDEF (Pure JS)</title>
+    <title>Генератор NTAG216 SmartPoster для Chameleon Ultra</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; padding: 20px; max-width: 600px; margin: auto; background-color: #f4f4f4; }
-        .container { background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        h1, h2 { text-align: center; color: #333; }
-        h2 { font-size: 1.2em; color: #555; margin-bottom: 20px;}
-        label { display: block; margin-bottom: 5px; font-weight: 600; color: #555; }
-        input, select { width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 4px; border: 1px solid #ddd; box-sizing: border-box; }
-        .help-text { font-size: 0.9em; color: #666; margin-top: -10px; margin-bottom: 15px; }
-        button { width: 100%; padding: 12px; border: none; border-radius: 4px; background-color: #007BFF; color: white; font-size: 16px; font-weight: bold; cursor: pointer; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; margin: 0 auto; max-width: 800px; padding: 20px; background-color: #f4f4f9; }
+        h1, h2 { color: #333; }
+        .container { background-color: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-weight: 600; margin-bottom: 5px; color: #555; }
+        input[type="text"], input[type="url"], input[type="number"], select, textarea {
+            width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #ccc; box-sizing: border-box;
+        }
+        button {
+            display: inline-block; background-color: #007bff; color: white; padding: 12px 20px; border: none;
+            border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: 600;
+        }
         button:hover { background-color: #0056b3; }
+        .note { font-size: 0.9em; color: #666; background-color: #e9ecef; padding: 10px; border-radius: 4px; }
+        #icon-preview { max-width: 64px; max-height: 64px; border: 1px solid #ccc; display: none; margin-top: 10px;}
     </style>
 </head>
 <body>
+
     <div class="container">
-        <h1>Генератор NDEF-записи</h1>
-        <h2>Smart Poster (NTAG216)</h2>
+        <h1>Генератор NTAG216 SmartPoster</h1>
+        <p class="note">Создайте .bin файл для записи на Chameleon Ultra. Файл будет содержать NDEF-сообщение типа SmartPoster.</p>
+
         <form id="ndef-form">
-            <!-- Поля формы остались без изменений -->
-            <label for="uri">URI (ссылка):</label>
-            <input type="url" id="uri" name="uri" placeholder="https://example.com" required>
-            <p class="help-text">Полный URL. Обязательное поле.</p>
+            <h2>Основная информация (URI)</h2>
+            <div class="form-group">
+                <label for="uri">URL-адрес (обязательно):</label>
+                <input type="url" id="uri" value="https://www.chameleonultra.com/" required>
+            </div>
 
-            <label for="title">Заголовок (текст):</label>
-            <input type="text" id="title" name="title" placeholder="Название ссылки (на русском)">
-            <p class="help-text">Текстовое описание, которое увидит пользователь.</p>
-
-            <label for="action">Действие:</label>
-            <select id="action" name="action">
-                <option value="none">Не указано (0)</option>
-                <option value="do">Выполнить/Открыть (1)</option>
-                <option value="save">Сохранить (2)</option>
-                <option value="edit">Редактировать (3)</option>
-            </select>
-            <p class="help-text">Рекомендуемое действие для устройства.</p>
-            
-            <label for="mime_type">MIME-тип ресурса:</label>
-            <input type="text" id="mime_type" name="mime_type" placeholder="text/html">
-            <p class="help-text">Тип контента по ссылке (например, 'image/jpeg').</p>
-
-            <label for="size">Размер ресурса (в байтах):</label>
-            <input type="number" id="size" name="size" placeholder="1024" min="0">
-            <p class="help-text">Размер файла по ссылке. Только целое число.</p>
+            <h2>Метаданные SmartPoster (необязательно)</h2>
+            <div class="form-group">
+                <label for="title">Заголовок:</label>
+                <input type="text" id="title" placeholder="Например, Официальный сайт">
+            </div>
+             <div class="form-group">
+                <label for="lang">Язык заголовка (BCP 47):</label>
+                <input type="text" id="lang" value="ru" placeholder="en, ru, de...">
+            </div>
+            <div class="form-group">
+                <label for="action">Действие:</label>
+                <select id="action">
+                    <option value="0" selected>Выполнить действие (стандарт)</option>
+                    <option value="1">Сохранить для последующего использования</option>
+                    <option value="2">Открыть для редактирования</option>
+                </select>
+            </div>
+             <div class="form-group">
+                <label for="resource-type">MIME-тип ресурса:</label>
+                <input type="text" id="resource-type" placeholder="Например, text/html">
+            </div>
+            <div class="form-group">
+                <label for="resource-size">Размер ресурса (в байтах):</label>
+                <input type="number" id="resource-size" placeholder="Например, 15000">
+            </div>
+            <div class="form-group">
+                <label for="icon-file">Файл иконки (PNG/JPEG/GIF, до 8КБ):</label>
+                <input type="file" id="icon-file" accept="image/png, image/jpeg, image/gif">
+                <img id="icon-preview" alt="Предпросмотр иконки"/>
+                <input type="hidden" id="icon-mime-type">
+            </div>
 
             <button type="submit">Сгенерировать .bin файл</button>
         </form>
     </div>
 
     <script>
-    // Ждем, пока весь HTML-документ будет загружен и готов
-    document.addEventListener('DOMContentLoaded', function() {
-        
-        const form = document.getElementById('ndef-form');
-
-        // ====================================================================
-        // ГЛАВНЫЕ ФУНКЦИИ-КОНСТРУКТОРЫ NDEF-ЗАПИСЕЙ
-        // ====================================================================
-
-        /**
-         * Кодирует строку в байтовый массив UTF-8.
-         * @param {string} str 
-         * @returns {Uint8Array}
-         */
-        function encodeUTF8(str) {
-            return new TextEncoder().encode(str);
-        }
-
-        /**
-         * Объединяет несколько байтовых массивов (Uint8Array) в один.
-         * @param {Uint8Array[]} arrays 
-         * @returns {Uint8Array}
-         */
-        function concatUint8Arrays(arrays) {
-            let totalLength = 0;
-            for (const arr of arrays) {
-                totalLength += arr.length;
-            }
-            const result = new Uint8Array(totalLength);
-            let offset = 0;
-            for (const arr of arrays) {
-                result.set(arr, offset);
-                offset += arr.length;
-            }
-            return result;
-        }
-
-        /**
-         * Создает NDEF-запись типа "URI".
-         * @param {string} uriString - Строка URI.
-         * @returns {Uint8Array} - Полностью сформированная NDEF-запись.
-         */
-        function createUriRecord(uriString) {
-            const prefixes = {
-                "http://www.": 0x01, "https://www.": 0x02,
-                "http://": 0x03, "https://": 0x04,
-                "tel:": 0x05, "mailto:": 0x06
+        // --- Polyfill для TextEncoder, если нужно ---
+        if (typeof TextEncoder === "undefined") {
+            window.TextEncoder = function TextEncoder() {};
+            TextEncoder.prototype.encode = function(str) {
+                var Len = str.length, res = new Uint8Array(Len);
+                for (var i = 0; i < Len; i++) {
+                    res[i] = str.charCodeAt(i);
+                }
+                return res;
             };
-            
-            let prefixCode = 0x00; // Код "без префикса"
-            let encodedUri;
+        }
+        const textEncoder = new TextEncoder();
 
-            for (const prefix in prefixes) {
-                if (uriString.startsWith(prefix)) {
-                    prefixCode = prefixes[prefix];
-                    encodedUri = encodeUTF8(uriString.substring(prefix.length));
+        // --- Обработчик предпросмотра иконки ---
+        const iconFileInput = document.getElementById('icon-file');
+        const iconPreview = document.getElementById('icon-preview');
+        const iconMimeTypeInput = document.getElementById('icon-mime-type');
+
+        iconFileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                if (file.size > 8192) {
+                    alert("Размер иконки не должен превышать 8КБ.");
+                    iconFileInput.value = '';
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    iconPreview.src = e.target.result;
+                    iconPreview.style.display = 'block';
+                    iconMimeTypeInput.value = file.type;
+                };
+                reader.readAsDataURL(file);
+            } else {
+                 iconPreview.style.display = 'none';
+                 iconMimeTypeInput.value = '';
+            }
+        });
+
+
+        // --- Функции для создания NDEF записей ---
+
+        function createUriRecord(uri) {
+            const uriPrefixes = [
+                "", "http://www.", "https://www.", "http://", "https://", "tel:", "mailto:",
+                "ftp://anonymous:anonymous@", "ftp://ftp.", "ftps://", "sftp://", "smb://", "nfs://",
+                "ftp://", "dav://", "news:", "telnet://", "imap:", "rtsp://", "urn:", "pop:",
+                "sip:", "sips:", "tftp:", "btspp://", "btl2cap://", "btgoep://", "tcpobex://",
+                "irdaobex://", "file://", "urn:epc:id:", "urn:epc:tag:", "urn:epc:pat:",
+                "urn:epc:raw:", "urn:epc:", "urn:nfc:"
+            ];
+            let prefixCode = 0;
+            for (let i = 1; i < uriPrefixes.length; i++) {
+                if (uri.startsWith(uriPrefixes[i])) {
+                    prefixCode = i;
+                    uri = uri.substring(uriPrefixes[i].length);
                     break;
                 }
             }
-            
-            if (prefixCode === 0x00) {
-                encodedUri = encodeUTF8(uriString);
-            }
-            
-            const payload = concatUint8Arrays([new Uint8Array([prefixCode]), encodedUri]);
-            const type = new Uint8Array([0x55]); // 'U'
-            
-            return createNdefRecord(0x01, type, payload);
+            const uriBytes = textEncoder.encode(uri);
+            const payload = new Uint8Array(1 + uriBytes.length);
+            payload[0] = prefixCode;
+            payload.set(uriBytes, 1);
+
+            return createNdefRecord(0x01, textEncoder.encode("U"), payload, 'U');
         }
 
-        /**
-         * Создает NDEF-запись типа "Text".
-         * @param {string} text - Текст для записи.
-         * @param {string} lang - Код языка (например, 'ru' или 'en').
-         * @returns {Uint8Array}
-         */
-        function createTextRecord(text, lang = 'ru') {
-            const encodedLang = encodeUTF8(lang);
-            const encodedText = encodeUTF8(text);
-            
-            // Статус-байт: 7-й бит (0 для UTF-8), 6-й бит (RFU, 0), 5..0 биты - длина кода языка
-            const status = encodedLang.length;
-            
-            const payload = concatUint8Arrays([new Uint8Array([status]), encodedLang, encodedText]);
-            const type = new Uint8Array([0x54]); // 'T'
+        function createTextRecord(text, lang) {
+            const langBytes = textEncoder.encode(lang);
+            const textBytes = textEncoder.encode(text);
+            const status = langBytes.length; // UTF-8, lang code length
+            const payload = new Uint8Array(1 + langBytes.length + textBytes.length);
+            payload[0] = status;
+            payload.set(langBytes, 1);
+            payload.set(textBytes, 1 + langBytes.length);
 
-            return createNdefRecord(0x01, type, payload);
+            return createNdefRecord(0x01, textEncoder.encode("T"), payload, 'T');
         }
 
-        /**
-         * Создает NDEF-запись для "Smart Poster Action".
-         * @param {number} actionCode - Код действия (0-3).
-         * @returns {Uint8Array}
-         */
-        function createActionRecord(actionCode) {
-            const payload = new Uint8Array([actionCode]);
-            const type = encodeUTF8('act'); // Тип 'act'
-            return createNdefRecord(0x01, type, payload); // TNF 0x01 (Well-Known)
-        }
-
-        /**
-         * Создает NDEF-запись для MIME-типа.
-         * @param {string} mimeTypeString
-         * @returns {Uint8Array}
-         */
-        function createMimeTypeRecord(mimeTypeString) {
-            const payload = encodeUTF8(mimeTypeString);
-            const type = encodeUTF8('t'); // Тип 't'
-            return createNdefRecord(0x01, type, payload); // TNF 0x01 (Well-Known)
+        function createMimeRecord(mimeType, data) {
+            return createNdefRecord(0x02, textEncoder.encode(mimeType), data, 'mime');
         }
         
-        /**
-         * Создает NDEF-запись для размера ресурса.
-         * @param {number} size
-         * @returns {Uint8Array}
-         */
-        function createSizeRecord(size) {
-            // Размер должен быть 4-байтным беззнаковым целым (Big Endian)
-            const payload = new Uint8Array(4);
-            const view = new DataView(payload.buffer);
-            view.setUint32(0, size, false); // false for Big Endian
-            const type = encodeUTF8('s'); // Тип 's'
-            return createNdefRecord(0x01, type, payload); // TNF 0x01 (Well-Known)
+        function createExternalRecord(domain, type, data) {
+             const recordType = textEncoder.encode(`${domain}:${type}`);
+             return createNdefRecord(0x04, recordType, data, 'external');
         }
 
-        /**
-         * ОСНОВНАЯ ФУНКЦИЯ-СБОРЩИК NDEF-ЗАПИСИ
-         * @param {number} tnf - Type Name Format (0-7).
-         * @param {Uint8Array} type - Байты типа записи.
-         * @param {Uint8Array} payload - Байты полезной нагрузки.
-         * @returns {Uint8Array} - Готовая NDEF-запись.
-         */
-        function createNdefRecord(tnf, type, payload) {
-            const typeLength = type.length;
-            const payloadLength = payload.length;
-            
-            // Определяем, является ли запись "короткой" (SR флаг)
-            const isShortRecord = payloadLength <= 255;
-            
-            // 1. Формируем заголовок (Flags + TNF)
-            // MB, ME, CF, IL - будут установлены позже, пока 0
-            // SR = 1, если короткая запись
-            const header = (isShortRecord ? 0x10 : 0x00) | tnf;
-            
-            // 2. Формируем остальную часть записи
-            let recordParts;
-            if (isShortRecord) {
-                recordParts = [
-                    new Uint8Array([header, typeLength, payloadLength]),
-                    type,
-                    payload
-                ];
-            } else {
-                // Для "длинных" записей длина payload - 4 байта
-                const payloadLengthBytes = new Uint8Array(4);
-                const view = new DataView(payloadLengthBytes.buffer);
-                view.setUint32(0, payloadLength, false); // Big Endian
-                
-                recordParts = [
-                    new Uint8Array([header, typeLength]),
-                    payloadLengthBytes,
-                    type,
-                    payload
-                ];
-            }
-            
-            return concatUint8Arrays(recordParts);
+        function createSpSubRecord(type, payload) {
+            // В SmartPoster вложенные записи - это стандартные NDEF записи.
+            return createNdefRecord(0x01, textEncoder.encode(type), payload);
         }
 
-        // ====================================================================
-        // ОБРАБОТЧИК ФОРМЫ
-        // ====================================================================
-        form.addEventListener('submit', function(event) {
-            event.preventDefault();
+        function createNdefRecord(tnf, type, payload, recordType) {
+             const isShort = payload.length < 256;
+             const header = new Uint8Array(isShort ? (2 + type.length) : (5 + type.length));
+             let offset = 0;
 
-            try {
-                // --- 1. Собираем данные из формы ---
-                const uri = document.getElementById('uri').value;
-                const title = document.getElementById('title').value;
-                const action = parseInt(document.getElementById('action').value, 10);
-                const mimeType = document.getElementById('mime_type').value;
-                const sizeStr = document.getElementById('size').value;
+             header[offset++] = (tnf & 0x07) | (isShort ? 0x10 : 0x00) | (recordType ? 0xC0 : 0x80); // MB=1, ME=1, SR
+             header[offset++] = type.length;
+             
+             if(isShort) {
+                header[offset++] = payload.length;
+             } else {
+                header[offset++] = (payload.length >> 24) & 0xFF;
+                header[offset++] = (payload.length >> 16) & 0xFF;
+                header[offset++] = (payload.length >> 8) & 0xFF;
+                header[offset++] = payload.length & 0xFF;
+             }
+             
+             header.set(type, offset);
 
-                if (!uri) {
-                    alert("URI является обязательным полем.");
-                    return;
-                }
+            const fullRecord = new Uint8Array(header.length + payload.length);
+            fullRecord.set(header);
+            fullRecord.set(payload, header.length);
+            
+            // Эта структура просто для удобства, она не используется для генерации байтов.
+            return {
+                bytes: fullRecord,
+                type: recordType
+            };
+        }
+        
+        // --- Основная логика ---
 
-                // --- 2. Создаем внутренние записи для Smart Poster ---
-                let innerRecords = [];
-                
-                // URI - обязательная запись
-                innerRecords.push(createUriRecord(uri));
-                
-                // Остальные - опциональные
-                if (title) {
-                    innerRecords.push(createTextRecord(title, 'ru'));
-                }
-                if (document.getElementById('action').value !== 'none') {
-                    const actionMap = {'do': 1, 'save': 2, 'edit': 3};
-                    const actionValue = actionMap[document.getElementById('action').value];
-                    innerRecords.push(createActionRecord(actionValue));
-                }
-                if (mimeType) {
-                    innerRecords.push(createMimeTypeRecord(mimeType));
-                }
-                if (sizeStr) {
-                    const size = parseInt(sizeStr, 10);
-                    if (!isNaN(size) && size >= 0) {
-                        innerRecords.push(createSizeRecord(size));
-                    }
-                }
-                
-                // --- 3. Устанавливаем флаги MB (Message Begin) и ME (Message End) для внутренних записей ---
-                if (innerRecords.length > 0) {
-                    // Устанавливаем MB=1 для первой записи
-                    innerRecords[0][0] |= 0x80; // 0b10000000
-                    
-                    // Устанавливаем ME=1 для последней записи
-                    innerRecords[innerRecords.length - 1][0] |= 0x40; // 0b01000000
-                }
+        document.getElementById('ndef-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
 
-                // --- 4. Объединяем внутренние записи в единую полезную нагрузку (payload) ---
-                const smartPosterPayload = concatUint8Arrays(innerRecords);
+            let subRecords = [];
 
-                // --- 5. Создаем основную (внешнюю) запись Smart Poster ---
-                const smartPosterType = encodeUTF8('Sp');
-                let finalNdefMessage = createNdefRecord(0x01, smartPosterType, smartPosterPayload);
-                
-                // --- 6. Устанавливаем флаги MB и ME для основной записи ---
-                // Т.к. она одна в сообщении, ставим оба флага
-                finalNdefMessage[0] |= 0xC0; // 0b11000000 (MB=1, ME=1)
+            // 1. URI (обязательно)
+            const uri = document.getElementById('uri').value;
+            subRecords.push(createUriRecord(uri).bytes);
 
-                // --- 7. Скачиваем результат как .bin файл ---
-                const blob = new Blob([finalNdefMessage], { type: 'application/octet-stream' });
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
-                link.download = 'ntag216.bin';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                URL.revokeObjectURL(link.href);
-
-            } catch (e) {
-                console.error("Ошибка при создании NDEF:", e);
-                alert("Произошла непредвиденная ошибка. Проверьте консоль для деталей.");
+            // 2. Title (опционально)
+            const title = document.getElementById('title').value;
+            if (title) {
+                const lang = document.getElementById('lang').value || 'en';
+                subRecords.push(createTextRecord(title, lang).bytes);
             }
+
+            // 3. Action (опционально)
+            const action = parseInt(document.getElementById('action').value, 10);
+            const actionRecordPayload = new Uint8Array([action]);
+            subRecords.push(createSpSubRecord('act', actionRecordPayload));
+
+
+            // 4. Resource Type (опционально)
+            const resourceType = document.getElementById('resource-type').value;
+            if (resourceType) {
+                 subRecords.push(createSpSubRecord('t', textEncoder.encode(resourceType)));
+            }
+
+            // 5. Resource Size (опционально)
+            const resourceSize = document.getElementById('resource-size').value;
+            if (resourceSize) {
+                const size = parseInt(resourceSize, 10);
+                const sizePayload = new Uint8Array(4);
+                new DataView(sizePayload.buffer).setUint32(0, size, false); // Big Endian
+                subRecords.push(createSpSubRecord('s', sizePayload));
+            }
+
+            // 6. Icon (опционально)
+            if (iconFileInput.files[0]) {
+                const file = iconFileInput.files[0];
+                const mimeType = file.type;
+                const arrayBuffer = await file.arrayBuffer();
+                const iconData = new Uint8Array(arrayBuffer);
+                subRecords.push(createMimeRecord(mimeType, iconData).bytes);
+            }
+
+            // Объединяем вложенные записи в одну полезную нагрузку
+            const spPayloadLength = subRecords.reduce((sum, rec) => sum + rec.length, 0);
+            const spPayload = new Uint8Array(spPayloadLength);
+            let currentOffset = 0;
+            subRecords.forEach((rec, index) => {
+                 // Корректируем флаги MB/ME для вложенных записей
+                 rec[0] = (index === 0) ? (rec[0] | 0x80) : (rec[0] & ~0x80); // Message Begin
+                 rec[0] = (index === subRecords.length - 1) ? (rec[0] | 0x40) : (rec[0] & ~0x40); // Message End
+                 spPayload.set(rec, currentOffset);
+                 currentOffset += rec.length;
+            });
+            
+            // Создаем основную запись SmartPoster
+            const spRecord = createNdefRecord(0x01, textEncoder.encode("Sp"), spPayload).bytes;
+            
+            // Формируем TLV для NDEF сообщения
+            const ndefMessage = new Uint8Array(2 + spRecord.length + 1);
+            ndefMessage[0] = 0x03; // NDEF Message TLV
+            ndefMessage[1] = spRecord.length; // Length
+            ndefMessage.set(spRecord, 2);
+            ndefMessage[2 + spRecord.length] = 0xFE; // Terminator TLV
+
+            // Создаем полный дамп памяти NTAG216 (924 байта)
+            const ntag216Memory = new Uint8Array(924).fill(0);
+            
+            // Записываем стандартный заголовок NTAG216 (UID, lock bytes и т.д.)
+            // Это плейсхолдеры, Chameleon их проигнорирует или перезапишет реальными.
+            ntag216Memory.set([0x04, 0x00, 0x00, 0x00], 0); // UID0-3, где 0x04 - производитель NXP
+            ntag216Memory.set([0x00, 0x00, 0x00, 0x00], 4); // UID4-6, BCC1
+            ntag216Memory.set([0x00, 0x00, 0x48, 0x00], 8); // Internal, Lock bytes, 0x48 - статичные lock bits
+
+            // Записываем Capability Container (CC) в страницу 3 (адрес 0x0C)
+            // E1 10 6D 00: NDEF, v1.0, 872 байта данных, чтение/запись без пароля
+            const memorySizeInBytes = 872;
+            const ccPage = [0xE1, 0x10, Math.floor(memorySizeInBytes / 8), 0x00];
+            ntag216Memory.set(ccPage, 12);
+            
+            // Записываем NDEF-сообщение, начиная со страницы 4 (адрес 0x10)
+            if (ndefMessage.length > memorySizeInBytes) {
+                alert(`Ошибка: Размер NDEF сообщения (${ndefMessage.length} байт) превышает доступную память (${memorySizeInBytes} байт).`);
+                return;
+            }
+            ntag216Memory.set(ndefMessage, 16);
+
+            // Создаем и скачиваем .bin файл
+            const blob = new Blob([ntag216Memory], { type: 'application/octet-stream' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'ntag216.bin';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         });
-    });
     </script>
 </body>
 </html>
