@@ -10,24 +10,19 @@
     function generateVCard() {
         const params = new URLSearchParams(window.location.search);
         
-        // --- vCard 3.0 (RFC 2426) ---
-        // Используем CHARSET=UTF-8 для текстовых полей, как требует стандарт.
         let vCard = "BEGIN:VCARD\n";
         vCard += "VERSION:3.0\n";
 
         // --- Имена ---
-        // FN (Formatted Name) и N (Name)
         if (params.has('fn')) vCard += `FN;CHARSET=UTF-8:${params.get('fn')}\n`;
         if (params.has('n')) vCard += `N;CHARSET=UTF-8:${params.get('n')}\n`;
-        
         if (params.has('nickname')) vCard += `NICKNAME;CHARSET=UTF-8:${params.get('nickname')}\n`;
 
         // --- Фото и дата рождения ---
         if (params.has('photo')) vCard += `PHOTO;VALUE=URL:${params.get('photo')}\n`;
-        if (params.has('bday')) vCard += `BDAY:${params.get('bday')}\n`; // YYYY-MM-DD
+        if (params.has('bday')) vCard += `BDAY:${params.get('bday')}\n`;
 
         // --- Адрес ---
-        // ADR: ;;улица;город;регион;индекс;страна
         if (params.has('adr')) vCard += `ADR;TYPE=HOME;CHARSET=UTF-8:;;${params.get('adr')}\n`;
 
         // --- Телефоны (формат vCard 3.0) ---
@@ -49,7 +44,6 @@
         if (params.has('note')) vCard += `NOTE;CHARSET=UTF-8:${params.get('note')}\n`;
         if (params.has('tz')) vCard += `TZ:${params.get('tz')}\n`;
         if (params.has('geo')) {
-            // В v3.0 разделитель - точка с запятой
             const geoVal = params.get('geo').replace(/,/g, ';');
             vCard += `GEO:${geoVal}\n`;
         }
