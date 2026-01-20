@@ -3,301 +3,560 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Генератор NTAG216 SmartPoster для Chameleon Ultra</title>
+    <title>NTAG BIN Generator для Chameleon Ultra</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; margin: 0 auto; max-width: 800px; padding: 20px; background-color: #f4f4f9; }
-        h1, h2 { color: #333; }
-        .container { background-color: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        :root {
+            --primary-color: #007bff;
+            --secondary-color: #6c757d;
+            --bg-color: #f8f9fa;
+            --card-bg: #ffffff;
+            --border-color: #dee2e6;
+            --text-color: #212529;
+            --danger-color: #dc3545;
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; margin: 0; padding: 20px; background-color: var(--bg-color); color: var(--text-color); }
+        .main-container { max-width: 900px; margin: 0 auto; }
+        h1, h2 { color: #333; border-bottom: 2px solid var(--primary-color); padding-bottom: 10px; }
+        .card { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .card-header { padding: 15px 20px; background-color: #f7f7f9; border-bottom: 1px solid var(--border-color); font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+        .card-body { padding: 20px; }
         .form-group { margin-bottom: 15px; }
-        label { display: block; font-weight: 600; margin-bottom: 5px; color: #555; }
-        input[type="text"], input[type="url"], input[type="number"], select, textarea {
-            width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #ccc; box-sizing: border-box;
+        label { display: block; font-weight: 500; margin-bottom: 6px; }
+        input, select, textarea {
+            width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #ccc; box-sizing: border-box; font-size: 1rem;
         }
         button {
-            display: inline-block; background-color: #007bff; color: white; padding: 12px 20px; border: none;
-            border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: 600;
+            display: inline-block; background-color: var(--primary-color); color: white; padding: 10px 18px; border: none;
+            border-radius: 4px; cursor: pointer; font-size: 1rem; font-weight: 500; transition: background-color 0.2s;
         }
         button:hover { background-color: #0056b3; }
-        .note { font-size: 0.9em; color: #666; background-color: #e9ecef; padding: 10px; border-radius: 4px; }
-        #icon-preview { max-width: 64px; max-height: 64px; border: 1px solid #ccc; display: none; margin-top: 10px;}
+        button.danger { background-color: var(--danger-color); }
+        button.danger:hover { background-color: #c82333; }
+        .controls { display: flex; gap: 10px; align-items: flex-end; }
+        #records-container .card-header { cursor: grab; }
+        #status-bar { padding: 15px; background-color: #e9ecef; border-radius: 8px; margin-top: 20px; font-weight: 500; }
+        .uri-type-options { border: 1px dashed #ccc; padding: 15px; border-radius: 5px; margin-top: 10px; }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <h1>Генератор NTAG216 SmartPoster</h1>
-        <p class="note">Создайте .bin файл для записи на Chameleon Ultra. Файл будет содержать NDEF-сообщение типа SmartPoster.</p>
+    <div class="main-container">
+        <h1>NTAG .BIN Генератор</h1>
 
-        <form id="ndef-form">
-            <h2>Основная информация (URI)</h2>
-            <div class="form-group">
-                <label for="uri">URL-адрес (обязательно):</label>
-                <input type="url" id="uri" value="https://www.chameleonultra.com/" required>
+        <!-- Settings -->
+        <div class="card">
+            <div class="card-header">Настройки метки и генерация</div>
+            <div class="card-body">
+                <div class="form-group">
+                    <label for="ntag-version">Версия NTAG:</label>
+                    <select id="ntag-version">
+                        <option value="216">NTAG216 (888 байт)</option>
+                        <option value="215">NTAG215 (504 байта)</option>
+                        <option value="213">NTAG213 (144 байта)</option>
+                    </select>
+                </div>
+                <button id="generate-btn">Сгенерировать .bin файл</button>
+                <div id="status-bar">
+                    <span>Размер данных: <b id="data-size">0</b> байт</span> |
+                    <span>Емкость метки: <b id="tag-capacity">888</b> байт</span>
+                </div>
             </div>
+        </div>
 
-            <h2>Метаданные SmartPoster (необязательно)</h2>
-            <div class="form-group">
-                <label for="title">Заголовок:</label>
-                <input type="text" id="title" placeholder="Например, Официальный сайт">
+        <!-- Record Editor -->
+        <div class="card">
+            <div class="card-header">Редактор NDEF Записей</div>
+            <div class="card-body">
+                <div id="records-container"></div>
+                <div class="controls">
+                    <div class="form-group" style="flex-grow: 1;">
+                        <label for="record-type">Тип новой записи:</label>
+                        <select id="record-type">
+                            <option value="uri">URI (Ссылка)</option>
+                            <option value="text">Text (Текст)</option>
+                            <option value="vcard">vCard (Визитка)</option>
+                            <option value="wifi">Wi-Fi</option>
+                            <option value="bt">Bluetooth OOB</option>
+                        </select>
+                    </div>
+                    <button id="add-record-btn">Добавить запись</button>
+                </div>
             </div>
-             <div class="form-group">
-                <label for="lang">Язык заголовка (BCP 47):</label>
-                <input type="text" id="lang" value="ru" placeholder="en, ru, de...">
-            </div>
-            <div class="form-group">
-                <label for="action">Действие:</label>
-                <select id="action">
-                    <option value="0" selected>Выполнить действие (стандарт)</option>
-                    <option value="1">Сохранить для последующего использования</option>
-                    <option value="2">Открыть для редактирования</option>
-                </select>
-            </div>
-             <div class="form-group">
-                <label for="resource-type">MIME-тип ресурса:</label>
-                <input type="text" id="resource-type" placeholder="Например, text/html">
-            </div>
-            <div class="form-group">
-                <label for="resource-size">Размер ресурса (в байтах):</label>
-                <input type="number" id="resource-size" placeholder="Например, 15000">
-            </div>
-            <div class="form-group">
-                <label for="icon-file">Файл иконки (PNG/JPEG/GIF, до 8КБ):</label>
-                <input type="file" id="icon-file" accept="image/png, image/jpeg, image/gif">
-                <img id="icon-preview" alt="Предпросмотр иконки"/>
-                <input type="hidden" id="icon-mime-type">
-            </div>
-
-            <button type="submit">Сгенерировать .bin файл</button>
-        </form>
+        </div>
     </div>
 
-    <script>
-        // --- Polyfill для TextEncoder, если нужно ---
-        if (typeof TextEncoder === "undefined") {
-            window.TextEncoder = function TextEncoder() {};
-            TextEncoder.prototype.encode = function(str) {
-                var Len = str.length, res = new Uint8Array(Len);
-                for (var i = 0; i < Len; i++) {
-                    res[i] = str.charCodeAt(i);
-                }
-                return res;
-            };
+<script>
+// --- GLOBAL STATE AND CONSTANTS ---
+const NTAG_SPECS = {
+    '213': { user: 144, total: 180 },
+    '215': { user: 504, total: 540 },
+    '216': { user: 888, total: 924 },
+};
+
+let records = [];
+let recordIdCounter = 0;
+const textEncoder = new TextEncoder();
+
+// --- DOM ELEMENTS ---
+const ntagVersionSelect = document.getElementById('ntag-version');
+const generateBtn = document.getElementById('generate-btn');
+const addRecordBtn = document.getElementById('add-record-btn');
+const newRecordTypeSelect = document.getElementById('record-type');
+const recordsContainer = document.getElementById('records-container');
+const dataSizeEl = document.getElementById('data-size');
+const tagCapacityEl = document.getElementById('tag-capacity');
+
+// --- NDEF RECORD BUILDERS ---
+function createNdefRecord(tnf, type, payload) {
+    const isShort = payload.length < 256;
+    const headerSize = 1 + 1 + (isShort ? 1 : 4) + type.length;
+    const header = new Uint8Array(headerSize);
+    let offset = 0;
+
+    header[offset++] = (tnf & 0x07) | (isShort ? 0x10 : 0x00);
+    header[offset++] = type.length;
+
+    if (isShort) {
+        header[offset++] = payload.length;
+    } else {
+        const view = new DataView(header.buffer);
+        view.setUint32(offset, payload.length, false);
+        offset += 4;
+    }
+    header.set(type, offset);
+
+    const fullRecord = new Uint8Array(header.length + payload.length);
+    fullRecord.set(header);
+    fullRecord.set(payload, header.length);
+    return fullRecord;
+}
+
+function buildUriRecord({ protocol, uri, mail_to, mail_subject, mail_body, sms_tel, sms_body, geo_lat, geo_lon }) {
+    let fullUri = "";
+    if (protocol === 'uri') {
+        fullUri = uri;
+    } else if (protocol === 'tel') {
+        fullUri = `tel:${uri}`;
+    } else if (protocol === 'mailto') {
+        fullUri = `mailto:${mail_to || ''}?subject=${encodeURIComponent(mail_subject || '')}&body=${encodeURIComponent(mail_body || '')}`;
+    } else if (protocol === 'sms') {
+        fullUri = `sms:${sms_tel || ''}?body=${encodeURIComponent(sms_body || '')}`;
+    } else if (protocol === 'geo') {
+        fullUri = `geo:${geo_lat || 0},${geo_lon || 0}`;
+    }
+
+    const uriPrefixes = ["", "http://www.", "https://www.", "http://", "https://", "tel:", "mailto:", "ftp://anonymous:anonymous@", "ftp://ftp.", "ftps://", "sftp://", "smb://", "nfs://", "ftp://", "dav://", "news:", "telnet://", "imap:", "rtsp://", "urn:", "pop:", "sip:", "sips:", "tftp:", "btspp://", "btl2cap://", "btgoep://", "tcpobex://", "irdaobex://", "file://", "urn:epc:id:", "urn:epc:tag:", "urn:epc:pat:", "urn:epc:raw:", "urn:epc:", "urn:nfc:"];
+    let prefixCode = 0;
+    for (let i = 1; i < uriPrefixes.length; i++) {
+        if (fullUri.startsWith(uriPrefixes[i])) {
+            prefixCode = i;
+            fullUri = fullUri.substring(uriPrefixes[i].length);
+            break;
         }
-        const textEncoder = new TextEncoder();
+    }
+    const uriBytes = textEncoder.encode(fullUri);
+    const payload = new Uint8Array(1 + uriBytes.length);
+    payload[0] = prefixCode;
+    payload.set(uriBytes, 1);
+    return createNdefRecord(0x01, textEncoder.encode("U"), payload);
+}
 
-        // --- Обработчик предпросмотра иконки ---
-        const iconFileInput = document.getElementById('icon-file');
-        const iconPreview = document.getElementById('icon-preview');
+function buildTextRecord({ text, lang }) {
+    const langBytes = textEncoder.encode(lang);
+    const textBytes = textEncoder.encode(text);
+    const status = langBytes.length;
+    const payload = new Uint8Array(1 + langBytes.length + textBytes.length);
+    payload[0] = status;
+    payload.set(langBytes, 1);
+    payload.set(textBytes, 1 + langBytes.length);
+    return createNdefRecord(0x01, textEncoder.encode("T"), payload);
+}
 
-        iconFileInput.addEventListener('change', (event) => {
-            const file = event.target.files[0];
-            if (file) {
-                if (file.size > 8192) {
-                    alert("Размер иконки не должен превышать 8КБ.");
-                    iconFileInput.value = '';
-                    return;
-                }
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    iconPreview.src = e.target.result;
-                    iconPreview.style.display = 'block';
-                };
-                reader.readAsDataURL(file);
-            } else {
-                 iconPreview.style.display = 'none';
-            }
+function buildVCardRecord(data) {
+    let vcard = "BEGIN:VCARD\nVERSION:4.0\n";
+    const fn = [data.fn_first, data.fn_middle, data.fn_last].filter(Boolean).join(' ');
+    vcard += `FN:${fn}\n`;
+    vcard += `N:${data.fn_last || ''};${data.fn_first || ''};${data.fn_middle || ''};${data.fn_prefix || ''};${data.fn_suffix || ''}\n`;
+    if (data.org) vcard += `ORG:${data.org}\n`;
+    if (data.title) vcard += `TITLE:${data.title}\n`;
+    if (data.photo_uri) vcard += `PHOTO;VALUE=uri:${data.photo_uri}\n`;
+    if (data.tel_work) vcard += `TEL;TYPE=work,voice;VALUE=uri:tel:${data.tel_work}\n`;
+    if (data.tel_cell) vcard += `TEL;TYPE=cell,voice;VALUE=uri:tel:${data.tel_cell}\n`;
+    if (data.email) vcard += `EMAIL:${data.email}\n`;
+    if (data.website) vcard += `URL:${data.website}\n`;
+
+    let adr = '';
+    if (data.adr_street || data.adr_city || data.adr_state || data.adr_zip || data.adr_country) {
+         adr = `;;${data.adr_street || ''};${data.adr_city || ''};${data.adr_state || ''};${data.adr_zip || ''};${data.adr_country || ''}`;
+         vcard += `ADR;TYPE=work:${adr}\n`;
+    }
+    vcard += "END:VCARD";
+    const payload = textEncoder.encode(vcard);
+    return createNdefRecord(0x02, textEncoder.encode("text/vcard"), payload);
+}
+
+function buildWifiRecord({ ssid, password, auth }) {
+    if (auth === 'nopass') password = '';
+    const wifiString = `WIFI:S:${ssid};T:${auth};P:${password};;`;
+    const payload = textEncoder.encode(wifiString);
+    // Many readers expect a URI record for WIFI type
+    return createNdefRecord(0x01, textEncoder.encode("U"), payload);
+}
+
+function buildBluetoothRecord({ mac, name }) {
+    const macBytes = mac.split(/[:\s-]/).map(hex => parseInt(hex, 16));
+    if (macBytes.length !== 6 || macBytes.some(isNaN)) {
+        alert('Неверный формат MAC-адреса. Используйте XX:XX:XX:XX:XX:XX.');
+        return null;
+    }
+    
+    const nameBytes = textEncoder.encode(name);
+    
+    // Payload: BT Address Length (2 bytes LE) + BT Address (6 bytes LE) + Local Name TLV
+    const payload = new Uint8Array(2 + 6 + (name ? (2 + nameBytes.length) : 0));
+    const view = new DataView(payload.buffer);
+    
+    let offset = 0;
+    view.setUint16(offset, 6, true); // BT Address length, Little-Endian
+    offset += 2;
+    
+    payload.set(macBytes.reverse(), offset); // MAC is Little-Endian in OOB
+    offset += 6;
+    
+    if (name) {
+        payload[offset++] = nameBytes.length + 1; // Length of this part
+        payload[offset++] = 0x09; // Type: Complete Local Name
+        payload.set(nameBytes, offset);
+    }
+    
+    return createNdefRecord(0x02, textEncoder.encode("application/vnd.bluetooth.ep.oob"), payload);
+}
+
+
+// --- UI TEMPLATE GENERATORS ---
+
+function getRecordHtml(id, type) {
+    const commonHeader = `
+        <div class="card" data-id="${id}" data-type="${type}">
+            <div class="card-header">
+                <span>${type.toUpperCase()} Запись</span>
+                <button class="danger" onclick="removeRecord(${id})">Удалить</button>
+            </div>
+            <div class="card-body">
+    `;
+    const commonFooter = `</div></div>`;
+    let content = '';
+
+    switch (type) {
+        case 'uri':
+            content = `
+                <div class="form-group">
+                    <label>Тип URI</label>
+                    <select class="uri-protocol-select" onchange="handleUriProtocolChange(this)">
+                        <option value="uri" selected>URL (http/https)</option>
+                        <option value="tel">Телефон (tel:)</option>
+                        <option value="mailto">Email (mailto:)</option>
+                        <option value="sms">SMS</option>
+                        <option value="geo">Гео-метка (geo:)</option>
+                    </select>
+                </div>
+                <div class="uri-type-options">
+                    <div class="form-group uri-option" data-protocol="uri">
+                        <label>URL</label>
+                        <input type="text" data-field="uri" placeholder="https://example.com">
+                    </div>
+                    <div class="form-group uri-option hidden" data-protocol="tel">
+                        <label>Номер телефона</label>
+                        <input type="text" data-field="uri" placeholder="+79123456789">
+                    </div>
+                     <div class="uri-option hidden" data-protocol="mailto">
+                        <div class="form-group"><label>Кому (Email)</label><input type="email" data-field="mail_to"></div>
+                        <div class="form-group"><label>Тема</label><input type="text" data-field="mail_subject"></div>
+                        <div class="form-group"><label>Сообщение</label><textarea data-field="mail_body"></textarea></div>
+                    </div>
+                    <div class="uri-option hidden" data-protocol="sms">
+                        <div class="form-group"><label>Номер телефона</label><input type="tel" data-field="sms_tel"></div>
+                        <div class="form-group"><label>Сообщение</label><textarea data-field="sms_body"></textarea></div>
+                    </div>
+                    <div class="uri-option hidden" data-protocol="geo">
+                        <div class="form-group"><label>Широта (Latitude)</label><input type="text" data-field="geo_lat" placeholder="55.7558"></div>
+                        <div class="form-group"><label>Долгота (Longitude)</label><input type="text" data-field="geo_lon" placeholder="37.6173"></div>
+                    </div>
+                </div>
+            `;
+            break;
+        case 'text':
+            content = `
+                <div class="form-group"><label>Текст</label><textarea data-field="text"></textarea></div>
+                <div class="form-group"><label>Код языка (BCP 47)</label><input type="text" data-field="lang" value="ru" placeholder="en, ru..."></div>
+            `;
+            break;
+        case 'vcard':
+            content = `
+                <b>Имя</b>
+                <div class="form-group"><label>Имя</label><input type="text" data-field="fn_first"></div>
+                <div class="form-group"><label>Фамилия</label><input type="text" data-field="fn_last"></div>
+                <div class="form-group"><label>Отчество</label><input type="text" data-field="fn_middle"></div>
+                <b>Работа</b>
+                <div class="form-group"><label>Организация</label><input type="text" data-field="org"></div>
+                <div class="form-group"><label>Должность</label><input type="text" data-field="title"></div>
+                <b>Контакты</b>
+                <div class="form-group"><label>Рабочий телефон</label><input type="tel" data-field="tel_work"></div>
+                <div class="form-group"><label>Мобильный телефон</label><input type="tel" data-field="tel_cell"></div>
+                <div class="form-group"><label>Email</label><input type="email" data-field="email"></div>
+                <div class="form-group"><label>Веб-сайт</label><input type="url" data-field="website"></div>
+                <b>Адрес</b>
+                <div class="form-group"><label>Улица, дом</label><input type="text" data-field="adr_street"></div>
+                <div class="form-group"><label>Город</label><input type="text" data-field="adr_city"></div>
+                <div class="form-group"><label>Регион/Штат</label><input type="text" data-field="adr_state"></div>
+                <div class="form-group"><label>Индекс</label><input type="text" data-field="adr_zip"></div>
+                <div class="form-group"><label>Страна</label><input type="text" data-field="adr_country"></div>
+                <b>Фото</b>
+                <div class="form-group"><label>URL фотографии</label><input type="url" data-field="photo_uri" placeholder="https://example.com/photo.jpg"></div>
+            `;
+            break;
+        case 'wifi':
+            content = `
+                <div class="form-group"><label>Имя сети (SSID)</label><input type="text" data-field="ssid"></div>
+                <div class="form-group"><label>Тип аутентификации</label>
+                    <select data-field="auth">
+                        <option value="WPA">WPA/WPA2</option>
+                        <option value="WEP">WEP</option>
+                        <option value="nopass">Открытая сеть</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>Пароль</label><input type="password" data-field="password"></div>
+            `;
+            break;
+        case 'bt':
+            content = `
+                <div class="form-group"><label>MAC-адрес устройства</label><input type="text" data-field="mac" placeholder="00:11:22:AA:BB:CC"></div>
+                <div class="form-group"><label>Имя устройства (необязательно)</label><input type="text" data-field="name"></div>
+            `;
+            break;
+    }
+    return commonHeader + content + commonFooter;
+}
+
+// --- UI AND EVENT HANDLERS ---
+function renderAllRecords() {
+    recordsContainer.innerHTML = '';
+    records.forEach(record => {
+        const recordEl = document.createElement('div');
+        recordEl.innerHTML = getRecordHtml(record.id, record.type);
+        recordsContainer.appendChild(recordEl.firstChild);
+    });
+    updateStatus();
+    attachInputListeners();
+}
+
+function handleUriProtocolChange(selectElement) {
+    const cardBody = selectElement.closest('.card-body');
+    const selectedProtocol = selectElement.value;
+    cardBody.querySelectorAll('.uri-option').forEach(opt => {
+        const isTarget = opt.dataset.protocol === selectedProtocol || 
+                         (selectedProtocol === 'tel' && opt.dataset.protocol === 'uri') ; // Reuse for tel
+        opt.classList.toggle('hidden', !isTarget);
+    });
+    // For tel, we show the 'uri' input but label it as 'Phone Number'
+    const telInput = cardBody.querySelector('[data-protocol="tel"]');
+    const uriInput = cardBody.querySelector('[data-protocol="uri"]');
+    if (selectedProtocol === 'tel') {
+        telInput.classList.remove('hidden');
+        uriInput.classList.add('hidden');
+    } else {
+         if(telInput) telInput.classList.add('hidden');
+         if(uriInput && selectedProtocol !== 'uri') uriInput.classList.add('hidden');
+         if(uriInput && selectedProtocol === 'uri') uriInput.classList.remove('hidden');
+    }
+}
+
+
+function addRecord() {
+    const type = newRecordTypeSelect.value;
+    const newRecord = {
+        id: recordIdCounter++,
+        type: type,
+        data: {}
+    };
+    records.push(newRecord);
+    
+    const recordEl = document.createElement('div');
+    recordEl.innerHTML = getRecordHtml(newRecord.id, newRecord.type);
+    recordsContainer.appendChild(recordEl.firstChild);
+    
+    updateStatus();
+    attachInputListeners();
+}
+
+window.removeRecord = function(id) {
+    records = records.filter(rec => rec.id !== id);
+    const recordEl = recordsContainer.querySelector(`.card[data-id="${id}"]`);
+    if (recordEl) recordEl.remove();
+    updateStatus();
+}
+
+function attachInputListeners() {
+    recordsContainer.querySelectorAll('input, select, textarea').forEach(input => {
+        input.addEventListener('input', updateStatus);
+    });
+    recordsContainer.querySelectorAll('.uri-protocol-select').forEach(select => {
+        select.addEventListener('change', updateStatus);
+    });
+}
+
+function gatherDataFromUI() {
+    const currentRecords = [];
+    recordsContainer.querySelectorAll('.card').forEach(cardEl => {
+        const id = parseInt(cardEl.dataset.id, 10);
+        const type = cardEl.dataset.type;
+        const data = {};
+        
+        if (type === 'uri') {
+            data.protocol = cardEl.querySelector('.uri-protocol-select').value;
+        }
+
+        cardEl.querySelectorAll('[data-field]').forEach(input => {
+            data[input.dataset.field] = input.value;
         });
+        currentRecords.push({ id, type, data });
+    });
+    return currentRecords;
+}
 
+function buildNdefMessageBytes(recordData) {
+    if (!recordData.length) return new Uint8Array(0);
 
-        // --- Функции для создания NDEF записей ---
-
-        function createUriRecord(uri) {
-            const uriPrefixes = [
-                "", "http://www.", "https://www.", "http://", "https://", "tel:", "mailto:",
-                "ftp://anonymous:anonymous@", "ftp://ftp.", "ftps://", "sftp://", "smb://", "nfs://",
-                "ftp://", "dav://", "news:", "telnet://", "imap:", "rtsp://", "urn:", "pop:",
-                "sip:", "sips:", "tftp:", "btspp://", "btl2cap://", "btgoep://", "tcpobex://",
-                "irdaobex://", "file://", "urn:epc:id:", "urn:epc:tag:", "urn:epc:pat:",
-                "urn:epc:raw:", "urn:epc:", "urn:nfc:"
-            ];
-            let prefixCode = 0;
-            for (let i = 1; i < uriPrefixes.length; i++) {
-                if (uri.startsWith(uriPrefixes[i])) {
-                    prefixCode = i;
-                    uri = uri.substring(uriPrefixes[i].length);
-                    break;
-                }
-            }
-            const uriBytes = textEncoder.encode(uri);
-            const payload = new Uint8Array(1 + uriBytes.length);
-            payload[0] = prefixCode;
-            payload.set(uriBytes, 1);
-
-            return createNdefRecord(0x01, textEncoder.encode("U"), payload);
+    const recordBytesList = recordData.map(rec => {
+        switch (rec.type) {
+            case 'uri': return buildUriRecord(rec.data);
+            case 'text': return buildTextRecord(rec.data);
+            case 'vcard': return buildVCardRecord(rec.data);
+            case 'wifi': return buildWifiRecord(rec.data);
+            case 'bt': return buildBluetoothRecord(rec.data);
+            default: return null;
         }
+    }).filter(Boolean);
+    
+    if (!recordBytesList.length) return new Uint8Array(0);
+    
+    // Set MB and ME flags
+    if (recordBytesList.length > 0) {
+        recordBytesList[0][0] |= 0x80; // MB flag
+        recordBytesList[recordBytesList.length - 1][0] |= 0x40; // ME flag
+    }
 
-        function createTextRecord(text, lang) {
-            const langBytes = textEncoder.encode(lang);
-            const textBytes = textEncoder.encode(text);
-            const status = langBytes.length;
-            const payload = new Uint8Array(1 + langBytes.length + textBytes.length);
-            payload[0] = status;
-            payload.set(langBytes, 1);
-            payload.set(textBytes, 1 + langBytes.length);
+    const totalLength = recordBytesList.reduce((sum, r) => sum + r.length, 0);
+    const fullPayload = new Uint8Array(totalLength);
+    let offset = 0;
+    recordBytesList.forEach(r => {
+        fullPayload.set(r, offset);
+        offset += r.length;
+    });
 
-            return createNdefRecord(0x01, textEncoder.encode("T"), payload);
-        }
+    return fullPayload;
+}
 
-        function createMimeRecord(mimeType, data) {
-            return createNdefRecord(0x02, textEncoder.encode(mimeType), data);
-        }
+function updateStatus() {
+    const currentData = gatherDataFromUI();
+    const ndefPayload = buildNdefMessageBytes(currentData);
+    const messageTlvSize = ndefPayload.length > 0 ? (2 + ndefPayload.length + 1) : 0; // TLV + Terminator
+    
+    const selectedVersion = ntagVersionSelect.value;
+    const capacity = NTAG_SPECS[selectedVersion].user;
+    
+    dataSizeEl.textContent = messageTlvSize;
+    tagCapacityEl.textContent = capacity;
 
-        function createSpSubRecord(type, payload) {
-            return createNdefRecord(0x01, textEncoder.encode(type), payload);
-        }
+    if (messageTlvSize > capacity) {
+        status-bar.style.color = 'var(--danger-color)';
+    } else {
+        status-bar.style.color = 'var(--text-color)';
+    }
+}
 
-        // *** ИСПРАВЛЕННАЯ ФУНКЦИЯ ***
-        function createNdefRecord(tnf, type, payload) {
-            const isShort = payload.length < 256;
-            
-            // Header: 1 (flags) + 1 (typeLen) + (1 or 4 for payloadLen) + type.length
-            const headerSize = 1 + 1 + (isShort ? 1 : 4) + type.length;
-            const header = new Uint8Array(headerSize);
-            
-            let offset = 0;
+async function generateBinFile() {
+    const currentData = gatherDataFromUI();
+    if (!currentData.length) {
+        alert("Нет записей для генерации файла.");
+        return;
+    }
+    
+    const ndefPayload = buildNdefMessageBytes(currentData);
+    if (!ndefPayload.length) {
+        alert("Не удалось создать NDEF данные. Проверьте поля, например, MAC-адрес.");
+        return;
+    }
 
-            // 1. Flags (TNF, SR). MB/ME флаги устанавливаются позже, при сборке.
-            header[offset++] = (tnf & 0x07) | (isShort ? 0x10 : 0x00);
+    const ndefMessageWithTlv = new Uint8Array(2 + ndefPayload.length + 1);
+    ndefMessageWithTlv[0] = 0x03; // NDEF Message TLV
+    ndefMessageWithTlv[1] = ndefPayload.length;
+    ndefMessageWithTlv.set(ndefPayload, 2);
+    ndefMessageWithTlv[ndefMessageWithTlv.length - 1] = 0xFE; // Terminator TLV
 
-            // 2. Type Length
-            header[offset++] = type.length;
-            
-            // 3. Payload Length
-            if (isShort) {
-                header[offset++] = payload.length;
-            } else {
-                header[offset++] = (payload.length >>> 24) & 0xFF;
-                header[offset++] = (payload.length >>> 16) & 0xFF;
-                header[offset++] = (payload.length >>> 8)  & 0xFF;
-                header[offset++] = payload.length & 0xFF;
-            }
+    // Size Validation
+    let currentVersion = ntagVersionSelect.value;
+    let capacity = NTAG_SPECS[currentVersion].user;
 
-            // 4. Type
-            header.set(type, offset);
-            
-            const fullRecord = new Uint8Array(header.length + payload.length);
-            fullRecord.set(header, 0);
-            fullRecord.set(payload, header.length);
-            
-            return fullRecord; // Возвращаем напрямую массив байтов
+    if (ndefMessageWithTlv.length > capacity) {
+        let newVersion = null;
+        if (currentVersion === '213' && ndefMessageWithTlv.length <= NTAG_SPECS['215'].user) {
+            newVersion = '215';
+        } else if ((currentVersion === '213' || currentVersion === '215') && ndefMessageWithTlv.length <= NTAG_SPECS['216'].user) {
+            newVersion = '216';
         }
         
-        // --- Основная логика ---
-
-        document.getElementById('ndef-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            let subRecords = [];
-
-            // 1. URI (обязательно)
-            const uri = document.getElementById('uri').value;
-            subRecords.push(createUriRecord(uri));
-
-            // 2. Title (опционально)
-            const title = document.getElementById('title').value;
-            if (title) {
-                const lang = document.getElementById('lang').value || 'en';
-                subRecords.push(createTextRecord(title, lang));
-            }
-
-            // 3. Action (опционально)
-            const action = parseInt(document.getElementById('action').value, 10);
-            const actionRecordPayload = new Uint8Array([action]);
-            subRecords.push(createSpSubRecord('act', actionRecordPayload));
-
-
-            // 4. Resource Type (опционально)
-            const resourceType = document.getElementById('resource-type').value;
-            if (resourceType) {
-                 subRecords.push(createSpSubRecord('t', textEncoder.encode(resourceType)));
-            }
-
-            // 5. Resource Size (опционально)
-            const resourceSize = document.getElementById('resource-size').value;
-            if (resourceSize) {
-                const size = parseInt(resourceSize, 10);
-                const sizePayload = new Uint8Array(4);
-                new DataView(sizePayload.buffer).setUint32(0, size, false); // Big Endian
-                subRecords.push(createSpSubRecord('s', sizePayload));
-            }
-
-            // 6. Icon (опционально)
-            if (iconFileInput.files[0]) {
-                const file = iconFileInput.files[0];
-                const mimeType = file.type;
-                const arrayBuffer = await file.arrayBuffer();
-                const iconData = new Uint8Array(arrayBuffer);
-                subRecords.push(createMimeRecord(mimeType, iconData));
-            }
-
-            // Объединяем вложенные записи в одну полезную нагрузку
-            const spPayloadLength = subRecords.reduce((sum, rec) => sum + rec.length, 0);
-            const spPayload = new Uint8Array(spPayloadLength);
-            let currentOffset = 0;
-            subRecords.forEach((rec, index) => {
-                 // Корректируем флаги MB/ME (Message Begin / Message End) для вложенных записей
-                 if (index === 0) rec[0] |= 0x80; // Устанавливаем флаг MB для первой записи
-                 if (index === subRecords.length - 1) rec[0] |= 0x40; // Устанавливаем флаг ME для последней
-                 
-                 spPayload.set(rec, currentOffset);
-                 currentOffset += rec.length;
-            });
-            
-            // Создаем основную запись SmartPoster
-            const spRecordBytes = createNdefRecord(0x01, textEncoder.encode("Sp"), spPayload);
-            // *** ИСПРАВЛЕНИЕ: Устанавливаем флаги MB и ME для основной записи, т.к. она одна в сообщении ***
-            spRecordBytes[0] |= 0xC0; // 0xC0 = 0b11000000 (MB=1, ME=1)
-            
-            // Формируем TLV для NDEF сообщения
-            const ndefMessage = new Uint8Array(2 + spRecordBytes.length + 1);
-            ndefMessage[0] = 0x03; // NDEF Message TLV
-            ndefMessage[1] = spRecordBytes.length; // Length
-            ndefMessage.set(spRecordBytes, 2);
-            ndefMessage[2 + spRecordBytes.length] = 0xFE; // Terminator TLV
-
-            // Создаем полный дамп памяти NTAG216 (924 байта)
-            const ntag216Memory = new Uint8Array(924).fill(0);
-            
-            // Записываем стандартный заголовок NTAG216 (UID, lock bytes и т.д.)
-            // Chameleon их проигнорирует или перезапишет реальными.
-            ntag216Memory.set([0x04, 0x00, 0x00, 0x00], 0); // UID0-3, где 0x04 - производитель NXP
-            ntag216Memory.set([0x00, 0x00, 0x00, 0x00], 4); // UID4-6, BCC1
-            ntag216Memory.set([0x00, 0x00, 0x48, 0x00], 8); // Internal, Lock bytes, 0x48 - статичные lock bits
-
-            // Записываем Capability Container (CC) в страницу 3 (адрес 0x0C)
-            // E1 10 6D 00: NDEF, v1.0, 872 байта данных (0x6D * 8), чтение/запись без пароля
-            const memorySizeInBytes = 872;
-            const ccPage = [0xE1, 0x10, Math.floor(memorySizeInBytes / 8), 0x00];
-            ntag216Memory.set(ccPage, 12);
-            
-            // Записываем NDEF-сообщение, начиная со страницы 4 (адрес 0x10)
-            if (ndefMessage.length > memorySizeInBytes) {
-                alert(`Ошибка: Размер NDEF сообщения (${ndefMessage.length} байт) превышает доступную память (${memorySizeInBytes} байт).`);
+        if (newVersion) {
+            if (confirm(`Размер данных (${ndefMessageWithTlv.length} байт) превышает емкость NTAG${currentVersion} (${capacity} байт). Хотите переключиться на NTAG${newVersion}?`)) {
+                ntagVersionSelect.value = newVersion;
+                currentVersion = newVersion;
+            } else {
+                alert("Генерация отменена. Уменьшите объем данных или выберите другую метку.");
                 return;
             }
-            ntag216Memory.set(ndefMessage, 16);
+        } else {
+            alert(`Ошибка: Размер данных (${ndefMessageWithTlv.length} байт) превышает максимальную емкость NTAG216 (${NTAG_SPECS['216'].user} байт).`);
+            return;
+        }
+    }
+    
+    const finalSpec = NTAG_SPECS[currentVersion];
+    const memoryDump = new Uint8Array(finalSpec.total).fill(0);
 
-            // Создаем и скачиваем .bin файл
-            const blob = new Blob([ntag216Memory], { type: 'application/octet-stream' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'ntag216.bin';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        });
-    </script>
+    // Standard Header (placeholders, Chameleon will use real ones)
+    memoryDump.set([0x04, 0x12, 0x34, 0x56], 0); // UID part 1 (0x04 for NXP)
+    memoryDump.set([0x78, 0x90, 0xAB, 0xCD], 4); // UID part 2
+    memoryDump.set([0x00, 0x00, 0x48, 0x00], 8); // Internal, Lock Bytes
+
+    // Capability Container (CC) - Page 3
+    const ccSize = Math.floor(finalSpec.user / 8);
+    memoryDump.set([0xE1, 0x10, ccSize, 0x00], 12);
+
+    // NDEF Message - Starts from Page 4
+    memoryDump.set(ndefMessageWithTlv, 16);
+
+    // Download
+    const blob = new Blob([memoryDump], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ntag${currentVersion}.bin`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+// --- INITIALIZATION ---
+addRecordBtn.addEventListener('click', addRecord);
+generateBtn.addEventListener('click', generateBinFile);
+ntagVersionSelect.addEventListener('change', updateStatus);
+
+// Initial call to set up the view
+renderAllRecords();
+updateStatus();
+
+</script>
 </body>
 </html>
